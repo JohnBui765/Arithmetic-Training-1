@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Drill — arithmetic practice</title>
+<style>
+/* ============================================================
+   TOKENS
+   Colour is data in this app. The interface is greyscale; the
+   only hues are correct/incorrect feedback and the mastery grid.
+   ============================================================ */
+:root{
+  --ink:#0B0B0F;
+  --ink-2:#5E5E68;
+  --ink-3:#8E8E97;
+  --hair:rgba(0,0,0,.10);
+  --paper:#F5F5F7;
+  --card:#FFFFFF;
+  --press:rgba(0,0,0,.055);
+  --good:#1E9E52;
+  --good-soft:rgba(30,158,82,.12);
+  --bad:#D6303B;
+  --bad-soft:rgba(214,48,59,.12);
+
+  --r:14px;
+  --r-lg:20px;
+  --pad:16px;
+
+  --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Inter",system-ui,sans-serif;
+  --f-text:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+
+  --dur:.18s;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ink:#F2F2F5; --ink-2:#9A9AA4; --ink-3:#68686F;
+    --hair:rgba(255,255,255,.13);
+    --paper:#000000; --card:#141416;
+    --press:rgba(255,255,255,.08);
+    --good:#35D06A; --good-soft:rgba(53,208,106,.16);
+    --bad:#FF544D; --bad-soft:rgba(255,84,77,.16);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:var(--f-text);
+  background:var(--paper); color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+  overscroll-behavior:none;
+}
+button,input,textarea,select{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
+button{background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+
+/* ---------- shell ---------- */
+#app{height:100dvh;height:100vh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;position:relative}
+@supports (height:100dvh){#app{height:100dvh}}
+.screen{display:none;flex-direction:column;flex:1;min-height:0}
+.screen.on{display:flex}
+
+.bar{
+  display:flex;align-items:center;gap:4px;
+  padding:calc(env(safe-area-inset-top) + 8px) var(--pad) 8px;
+  min-height:44px;flex:none;
+}
+.bar h1{font-family:var(--f-display);font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+.bar .sp{flex:1}
+.icon-btn{
+  width:44px;height:44px;display:grid;place-items:center;margin:0 -10px;
+  border-radius:50%;color:var(--ink);font-size:17px;
+}
+.icon-btn:active{background:var(--press)}
+.link-btn{font-size:16px;color:var(--ink);font-weight:500;padding:10px 2px}
+.link-btn:active{opacity:.45}
+
+.body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 var(--pad) calc(env(safe-area-inset-bottom) + 28px)}
+
+/* ---------- typography helpers ---------- */
+.eyebrow{
+  font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);margin:24px 4px 8px;
+}
+.hint{font-size:13px;line-height:1.45;color:var(--ink-3);margin:8px 4px 0}
+.big-title{font-family:var(--f-display);font-size:32px;font-weight:700;letter-spacing:-.022em;margin:4px 0 2px}
+.sub{font-size:15px;color:var(--ink-2);margin:0 0 20px}
+
+/* ---------- inset grouped list (iOS Settings pattern) ---------- */
+.list{background:var(--card);border-radius:var(--r);overflow:hidden}
+.row{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px;min-height:48px;width:100%;text-align:left;
+  position:relative;
+}
+.row + .row::before{
+  content:"";position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair);
+}
+button.row:active{background:var(--press)}
+.row .lbl{flex:1;font-size:16px;letter-spacing:-.01em}
+.row .val{font-size:16px;color:var(--ink-3);letter-spacing:-.01em}
+.row .chev{color:var(--ink-3);font-size:15px;flex:none}
+.row .sub2{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+
+/* ---------- switch ---------- */
+.sw{width:50px;height:30px;border-radius:15px;background:var(--hair);position:relative;flex:none;transition:background var(--dur) var(--ease)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:transform var(--dur) var(--ease)}
+.sw[aria-checked="true"]{background:var(--good)}
+.sw[aria-checked="true"]::after{transform:translateX(20px)}
+
+/* ---------- primary action ---------- */
+.cta{
+  display:block;width:100%;padding:17px;border-radius:var(--r);
+  background:var(--ink);color:var(--paper);
+  font-size:17px;font-weight:600;letter-spacing:-.01em;
+  transition:transform var(--dur) var(--ease),opacity var(--dur) var(--ease);
+}
+.cta:active{transform:scale(.975);opacity:.9}
+.cta.ghost{background:var(--card);color:var(--ink);border:1px solid var(--hair)}
+.cta[disabled]{opacity:.35;pointer-events:none}
+
+/* ---------- chips ---------- */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  padding:9px 15px;border-radius:11px;background:var(--card);
+  font-size:15px;font-weight:500;color:var(--ink-2);
+  border:1px solid transparent;transition:all var(--dur) var(--ease);
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.chip:active{transform:scale(.94)}
+.chip.op{font-size:19px;min-width:52px;font-family:var(--f-display)}
+
+/* ---------- streak strip ---------- */
+.streak{display:flex;align-items:baseline;gap:8px;margin:2px 4px 18px}
+.streak b{font-family:var(--f-display);font-size:15px;font-weight:600}
+.streak span{font-size:14px;color:var(--ink-3)}
+
+/* ============================================================
+   PRACTICE
+   ============================================================ */
+#practice .body{display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding-bottom:0}
+.qwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:0}
+.q{
+  font-family:var(--f-display);
+  font-size:clamp(40px,13vw,68px);
+  font-weight:300;letter-spacing:-.03em;line-height:1.1;
+  text-align:center;white-space:nowrap;
+}
+.a{
+  font-family:var(--f-display);
+  font-size:clamp(40px,13vw,68px);
+  font-weight:400;letter-spacing:-.03em;line-height:1.15;
+  min-height:1.15em;display:flex;align-items:center;gap:2px;
+}
+.a .ph{color:var(--ink-3);opacity:.35}
+.caret{width:2px;height:.78em;background:var(--ink);border-radius:1px;animation:blink 1.06s steps(1) infinite;margin-left:3px}
+@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+.verdict{font-size:15px;font-weight:600;height:22px;letter-spacing:-.01em}
+.verdict.g{color:var(--good)}
+.verdict.b{color:var(--bad)}
+
+/* signature motion: the vertical exchange */
+.qwrap.out{animation:lift .17s var(--ease) forwards}
+.qwrap.in{animation:rise .19s var(--ease)}
+@keyframes lift{to{opacity:0;transform:translateY(-14px)}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.qwrap.shake{animation:shake .3s var(--ease)}
+@keyframes shake{20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-3px)}100%{transform:none}}
+
+.progress{height:2px;background:var(--hair);flex:none;margin:0 var(--pad)}
+.progress i{display:block;height:100%;background:var(--ink);border-radius:1px;transition:width .25s var(--ease)}
+.timer{font-family:var(--f-display);font-size:15px;font-weight:600;color:var(--ink-2);min-width:44px;text-align:right}
+
+/* ---------- keypad ---------- */
+.pad{
+  flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+  padding:12px var(--pad) calc(env(safe-area-inset-bottom) + 12px);
+}
+.pad button{
+  height:min(13.5vh,66px);min-height:52px;
+  border-radius:var(--r);background:var(--card);
+  font-family:var(--f-display);font-size:26px;font-weight:400;
+  display:grid;place-items:center;
+  transition:transform .1s var(--ease),background .1s var(--ease);
+}
+.pad button:active{background:var(--press);transform:scale(.95)}
+.pad button.fn{font-size:20px;color:var(--ink-2)}
+.pad button.go{background:var(--ink);color:var(--paper);font-size:19px;font-weight:600}
+
+/* ============================================================
+   SUMMARY
+   ============================================================ */
+.score{font-family:var(--f-display);font-size:64px;font-weight:200;letter-spacing:-.04em;line-height:1;margin:8px 0 2px}
+.score small{font-size:24px;font-weight:400;color:var(--ink-3);letter-spacing:-.02em}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:20px 0}
+.metric{background:var(--card);border-radius:var(--r);padding:14px 16px}
+.metric b{display:block;font-family:var(--f-display);font-size:26px;font-weight:500;letter-spacing:-.02em}
+.metric span{font-size:12px;color:var(--ink-3);letter-spacing:.02em}
+.review{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;font-size:16px}
+.review + .review{border-top:1px solid var(--hair)}
+.review .was{color:var(--bad);font-size:14px}
+.review .ms{color:var(--ink-3);font-size:14px}
+
+/* ============================================================
+   SIGNATURE — mastery grid
+   ============================================================ */
+.grid-wrap{background:var(--card);border-radius:var(--r);padding:14px;overflow-x:auto}
+table.hm{border-collapse:separate;border-spacing:2px;margin:0 auto}
+table.hm th{font-size:10px;font-weight:600;color:var(--ink-3);width:22px;height:18px;padding:0}
+table.hm td{width:22px;height:22px;padding:0;border-radius:4px;background:var(--hair);position:relative}
+table.hm td.on{cursor:pointer}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3);margin:12px 4px 0;letter-spacing:.02em}
+.legend i{width:16px;height:10px;border-radius:2px;display:inline-block}
+.spark{display:flex;align-items:flex-end;gap:3px;height:64px;padding:14px;background:var(--card);border-radius:var(--r)}
+.spark i{flex:1;background:var(--ink);border-radius:2px 2px 0 0;min-height:2px;opacity:.8}
+
+/* ============================================================
+   SETS
+   ============================================================ */
+textarea.paste{
+  width:100%;min-height:190px;padding:14px;border-radius:var(--r);
+  background:var(--card);border:1px solid var(--hair);resize:vertical;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  font-size:15px;line-height:1.65;
+}
+textarea.paste:focus{outline:none;border-color:var(--ink-3)}
+input.name{
+  width:100%;padding:13px 14px;border-radius:var(--r);
+  background:var(--card);border:1px solid var(--hair);font-size:16px;
+}
+input.name:focus{outline:none;border-color:var(--ink-3)}
+.lint{margin-top:10px;border-radius:var(--r);overflow:hidden;background:var(--card)}
+.lint .ln{display:flex;gap:9px;padding:9px 13px;font-size:13.5px;align-items:flex-start;line-height:1.4}
+.lint .ln + .ln{border-top:1px solid var(--hair)}
+.lint .m{flex:none;width:15px;font-weight:700;font-size:12px;line-height:1.5}
+.lint .ok .m{color:var(--good)}
+.lint .err .m{color:var(--bad)}
+.lint .warn .m{color:#C08A00}
+.lint .err .t,.lint .warn .t{color:var(--ink-2)}
+.lint code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.tally{display:flex;gap:14px;font-size:13px;color:var(--ink-3);margin:10px 4px 0}
+.empty{text-align:center;padding:52px 24px;color:var(--ink-3)}
+.empty p{font-size:15px;line-height:1.5;margin:0 0 20px}
+.empty .mark{font-family:var(--f-display);font-size:34px;font-weight:200;color:var(--ink-3);opacity:.5;margin-bottom:14px;letter-spacing:.06em}
+
+.sheet-actions{display:flex;gap:9px;margin-top:18px}
+.sheet-actions .cta{margin:0}
+.danger{color:var(--bad)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  .caret{animation:none;opacity:1}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- ================= HOME ================= -->
+<section class="screen on" id="home">
+  <div class="bar"><h1>Drill</h1><div class="sp"></div>
+    <button class="icon-btn" id="toSettings" aria-label="Settings">&#9881;</button>
+  </div>
+  <div class="body">
+    <div class="streak"><b id="streakN">—</b><span id="streakT">day streak</span></div>
+
+    <div class="eyebrow" style="margin-top:0">Practise</div>
+    <div class="chips" id="opChips">
+      <button class="chip op" data-op="+" aria-pressed="true">+</button>
+      <button class="chip op" data-op="−" aria-pressed="true">−</button>
+      <button class="chip op" data-op="×" aria-pressed="true">×</button>
+      <button class="chip op" data-op="÷" aria-pressed="true">÷</button>
+    </div>
+
+    <div class="eyebrow">Session</div>
+    <div class="chips" id="modeChips">
+      <button class="chip" data-mode="count" aria-pressed="true">20 questions</button>
+      <button class="chip" data-mode="sprint" aria-pressed="false">60 seconds</button>
+      <button class="chip" data-mode="endless" aria-pressed="false">Endless</button>
+    </div>
+
+    <div style="margin-top:26px"><button class="cta" id="startBtn">Start</button></div>
+
+    <div class="eyebrow">Your material</div>
+    <div class="list">
+      <button class="row" id="toSets"><span class="lbl">My sets<span class="sub2" id="setsSub">No sets yet</span></span><span class="chev">&rsaquo;</span></button>
+      <button class="row" id="toStats"><span class="lbl">Progress</span><span class="chev">&rsaquo;</span></button>
+    </div>
+    <p class="hint">Numbers range from <b id="rangeEcho">2</b> to <b id="rangeEcho2">12</b>. Change that in Settings.</p>
+  </div>
+</section>
+
+<!-- ================= PRACTICE ================= -->
+<section class="screen" id="practice">
+  <div class="bar">
+    <button class="icon-btn" id="quitBtn" aria-label="End session">&times;</button>
+    <div class="sp"></div>
+    <div class="timer" id="timer"></div>
+  </div>
+  <div class="progress"><i id="progBar" style="width:0%"></i></div>
+  <div class="body">
+    <div class="qwrap" id="qwrap">
+      <div class="q" id="qText">&nbsp;</div>
+      <div class="a" id="aText"></div>
+      <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="pad" id="pad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="fn" data-k="neg" id="negKey">&minus;</button>
+    <button data-k="0">0</button>
+    <button class="fn" data-k="del" aria-label="Delete">&#9003;</button>
+  </div>
+</section>
+
+<!-- ================= SUMMARY ================= -->
+<section class="screen" id="summary">
+  <div class="bar"><h1>Session</h1><div class="sp"></div>
+    <button class="link-btn" id="sumDone">Done</button>
+  </div>
+  <div class="body">
+    <div class="score" id="sumScore">—</div>
+    <p class="sub" id="sumLine"></p>
+    <div class="metrics">
+      <div class="metric"><b id="mAcc">—</b><span>ACCURACY</span></div>
+      <div class="metric"><b id="mSpeed">—</b><span>MEDIAN TIME</span></div>
+      <div class="metric"><b id="mBest">—</b><span>FASTEST</span></div>
+      <div class="metric"><b id="mCount">—</b><span>ANSWERED</span></div>
+    </div>
+    <div id="missWrap" style="display:none">
+      <div class="eyebrow">Worth another look</div>
+      <div class="list" id="missList"></div>
+    </div>
+    <div style="margin-top:26px"><button class="cta" id="againBtn">Practise again</button></div>
+  </div>
+</section>
+
+<!-- ================= SETS ================= -->
+<section class="screen" id="sets">
+  <div class="bar">
+    <button class="icon-btn" data-back="home" aria-label="Back">&lsaquo;</button>
+    <h1>My sets</h1><div class="sp"></div>
+    <button class="link-btn" id="newSet">New</button>
+  </div>
+  <div class="body">
+    <div id="setsEmpty" class="empty">
+      <div class="mark">7 &times; 8</div>
+      <p>Type or paste your own equations, one per line, and practise only those.</p>
+      <button class="cta" id="newSet2" style="max-width:240px;margin:0 auto">Create a set</button>
+    </div>
+    <div class="list" id="setsList" style="display:none"></div>
+    <p class="hint" id="setsHint" style="display:none">Tap a set to practise it. Tap Edit to change the questions.</p>
+  </div>
+</section>
+
+<!-- ================= EDITOR ================= -->
+<section class="screen" id="editor">
+  <div class="bar">
+    <button class="icon-btn" data-back="sets" aria-label="Back">&lsaquo;</button>
+    <h1 id="edTitle">New set</h1><div class="sp"></div>
+    <button class="link-btn" id="saveSet">Save</button>
+  </div>
+  <div class="body">
+    <div class="eyebrow" style="margin-top:6px">Name</div>
+    <input class="name" id="edName" placeholder="Nine times table" autocomplete="off">
+    <div class="eyebrow">Questions — one per line</div>
+    <textarea class="paste" id="edText" spellcheck="false" autocapitalize="off" autocorrect="off"
+placeholder="7 x 8
+144 / 12
+25 + 68
+9 x _ = 63"></textarea>
+    <div class="tally" id="edTally"></div>
+    <div class="lint" id="edLint"></div>
+    <p class="hint">
+      Write <code>x</code> <code>*</code> <code>×</code> for multiply, <code>/</code> <code>:</code> <code>÷</code> for divide.
+      Leave the answer off and it is worked out for you — or write <code>= 56</code> and it is checked against yours.
+      Put <code>_</code> anywhere in a single-step equation for a missing-number question.
+    </p>
+    <div class="sheet-actions">
+      <button class="cta ghost danger" id="delSet" style="display:none">Delete set</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATS ================= -->
+<section class="screen" id="stats">
+  <div class="bar">
+    <button class="icon-btn" data-back="home" aria-label="Back">&lsaquo;</button>
+    <h1>Progress</h1><div class="sp"></div>
+  </div>
+  <div class="body">
+    <div class="metrics" style="margin-top:6px">
+      <div class="metric"><b id="sSessions">0</b><span>SESSIONS</span></div>
+      <div class="metric"><b id="sAnswered">0</b><span>QUESTIONS</span></div>
+      <div class="metric"><b id="sAcc">—</b><span>ACCURACY</span></div>
+      <div class="metric"><b id="sSpeed">—</b><span>MEDIAN TIME</span></div>
+    </div>
+    <div class="eyebrow">Times tables</div>
+    <div class="grid-wrap"><table class="hm" id="heat"></table></div>
+    <div class="legend"><span>Weak</span><i id="lg1"></i><i id="lg2"></i><i id="lg3"></i><i id="lg4"></i><span>Strong</span>
+      <span style="margin-left:auto" id="heatTip">Tap a square</span></div>
+    <div class="eyebrow">Accuracy, last 20 sessions</div>
+    <div class="spark" id="spark"></div>
+    <div class="eyebrow">Data</div>
+    <div class="list">
+      <button class="row" id="exportBtn"><span class="lbl">Export everything<span class="sub2">Copies a backup to your clipboard</span></span><span class="chev">&rsaquo;</span></button>
+      <button class="row" id="importBtn"><span class="lbl">Import a backup</span><span class="chev">&rsaquo;</span></button>
+      <button class="row danger" id="wipeBtn"><span class="lbl">Reset all progress</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="screen" id="settings">
+  <div class="bar">
+    <button class="icon-btn" data-back="home" aria-label="Back">&lsaquo;</button>
+    <h1>Settings</h1><div class="sp"></div>
+  </div>
+  <div class="body">
+    <div class="eyebrow" style="margin-top:6px">Numbers</div>
+    <div class="list">
+      <div class="row"><span class="lbl">Smallest</span>
+        <input class="val" id="setMin" type="number" min="0" max="99" style="width:64px;text-align:right;background:none;border:0"></div>
+      <div class="row"><span class="lbl">Largest</span>
+        <input class="val" id="setMax" type="number" min="1" max="999" style="width:64px;text-align:right;background:none;border:0"></div>
+    </div>
+    <div class="eyebrow">Questions</div>
+    <div class="list">
+      <button class="row" data-t="allowNeg"><span class="lbl">Allow negative answers<span class="sub2">Otherwise subtraction never goes below zero</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="noTrivial"><span class="lbl">Skip trivial questions<span class="sub2">Hides &times;0, &times;1 and +0</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="repeat"><span class="lbl">Bring back mistakes<span class="sub2">Missed facts reappear later in the session</span></span><span class="sw" role="switch"></span></button>
+    </div>
+    <div class="eyebrow">Answering</div>
+    <div class="list">
+      <button class="row" data-t="autoSubmit"><span class="lbl">Submit automatically<span class="sub2">As soon as the answer is long enough</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="sound"><span class="lbl">Sound</span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="haptics"><span class="lbl">Vibration<span class="sub2">Android only — iOS browsers do not allow it</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="lefty"><span class="lbl">Left-handed keypad</span><span class="sw" role="switch"></span></button>
+    </div>
+    <p class="hint">Keyboard works too: digits, <b>Backspace</b>, <b>Enter</b>, <b>Esc</b> to stop.</p>
+  </div>
+</section>
+</div>
+<script>
+/* ==========================================================
+   DRILL — arithmetic practice
+   Engine layer. No DOM below this line until Part D.
+   ========================================================== */
+'use strict';
+
+/* ---------- storage: real if available, memory if not ---------- */
+const Store = (() => {
+  let live = true, mem = {};
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); }
+  catch (e) { live = false; }
+  return {
+    live,
+    get(k, d) {
+      try { const v = live ? localStorage.getItem(k) : mem[k]; return v == null ? d : JSON.parse(v); }
+      catch (e) { return d; }
+    },
+    set(k, v) {
+      const s = JSON.stringify(v);
+      try { if (live) localStorage.setItem(k, s); else mem[k] = s; } catch (e) { live = false; mem[k] = s; }
+    }
+  };
+})();
+
+/* ---------- app state ---------- */
+const DEFAULTS = {
+  ops: ['+', '−', '×', '÷'], min: 2, max: 12, mode: 'count', count: 20, seconds: 60,
+  allowNeg: false, noTrivial: true, repeat: true,
+  autoSubmit: true, sound: true, haptics: true, lefty: false
+};
+
+const S = {
+  cfg: Object.assign({}, DEFAULTS, Store.get('drill.cfg', {})),
+  facts: Store.get('drill.facts', {}),
+  history: Store.get('drill.history', []),
+  sets: Store.get('drill.sets', []),
+  streak: Store.get('drill.streak', { last: null, n: 0 })
+};
+const save = () => {
+  Store.set('drill.cfg', S.cfg); Store.set('drill.facts', S.facts);
+  Store.set('drill.history', S.history); Store.set('drill.sets', S.sets);
+  Store.set('drill.streak', S.streak);
+};
+
+/* ==========================================================
+   EXPRESSION PARSER
+   Recursive descent. Never eval() — user text is data, not code.
+   ========================================================== */
+function Bad(msg) { const e = new Error(msg); e.soft = true; return e; }
+
+function norm(s) {
+  return String(s)
+    .replace(/(\d)[,\u00A0](\d)/g, '$1$2')
+    .replace(/[×✕✖xX·]/g, '*')
+    .replace(/[÷:]/g, '/')
+    .replace(/[–—−‒]/g, '-')
+    .replace(/[＝]/g, '=');
+}
+
+function tokenize(src) {
+  const t = [], s = norm(src);
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (/[0-9.]/.test(c)) {
+      let j = i; while (j < s.length && /[0-9.]/.test(s[j])) j++;
+      const raw = s.slice(i, j);
+      if ((raw.match(/\./g) || []).length > 1) throw Bad('"' + raw + '" is not a number');
+      t.push({ t: 'n', v: parseFloat(raw) }); i = j; continue;
+    }
+    if (c === '_' || c === '?') {
+      let j = i; while (j < s.length && (s[j] === '_' || s[j] === '?')) j++;
+      t.push({ t: 'b' }); i = j; continue;
+    }
+    if ('+-*/()'.indexOf(c) > -1) { t.push({ t: c }); i++; continue; }
+    throw Bad('cannot read "' + c + '"');
+  }
+  return t;
+}
+
+function evaluate(tokens) {
+  let p = 0;
+  const peek = () => tokens[p];
+  const eat = k => { if (tokens[p] && tokens[p].t === k) { p++; return true; } return false; };
+  function atom() {
+    const tk = peek();
+    if (!tk) throw Bad('the line ends too early');
+    if (tk.t === 'n') { p++; return tk.v; }
+    if (tk.t === 'b') throw Bad('blanks only work in a single-step equation');
+    if (tk.t === '(') { p++; const v = expr(); if (!eat(')')) throw Bad('a bracket is not closed'); return v; }
+    throw Bad('unexpected symbol');
+  }
+  /* one leading minus is real maths; "++" or "--" is a typo, so it fails */
+  function unary() { if (eat('-')) return -atom(); return atom(); }
+  function term() {
+    let v = unary();
+    while (peek() && (peek().t === '*' || peek().t === '/')) {
+      const o = tokens[p++].t, r = unary();
+      if (o === '/' && r === 0) throw Bad('cannot divide by zero');
+      v = o === '*' ? v * r : v / r;
+    }
+    return v;
+  }
+  function expr() {
+    let v = term();
+    while (peek() && (peek().t === '+' || peek().t === '-')) {
+      const o = tokens[p++].t, r = term();
+      v = o === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+  const out = expr();
+  if (p < tokens.length) throw Bad('unexpected symbol after the expression');
+  return round(out);
+}
+
+const round = n => Math.round(n * 1e6) / 1e6;
+const GLYPH = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+const fmt = n => String(round(n)).replace('-', '−');
+
+function render(tokens) {
+  let out = '';
+  for (const tk of tokens) {
+    if (tk.t === 'n') out += fmt(tk.v);
+    else if (tk.t === 'b') out += '☐';
+    else if (tk.t === '(' || tk.t === ')') out += tk.t;
+    else out += ' ' + GLYPH[tk.t] + ' ';
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+/* Solve a ∘ b = c when exactly one of the three is blank. */
+function solveBlank(a, op, b, c) {
+  const A = a === null, B = b === null, C = c === null;
+  if (C) return round(evaluate([{ t: 'n', v: a }, { t: op }, { t: 'n', v: b }]));
+  if (op === '+') return A ? round(c - b) : round(c - a);
+  if (op === '-') return A ? round(c + b) : round(a - c);
+  if (op === '*') {
+    if (A) { if (b === 0) throw Bad('cannot work out the missing number'); return round(c / b); }
+    if (a === 0) throw Bad('cannot work out the missing number'); return round(c / a);
+  }
+  if (op === '/') {
+    if (A) return round(c * b);
+    if (c === 0) throw Bad('cannot work out the missing number'); return round(a / c);
+  }
+  throw Bad('unsupported operator');
+}
+
+/* Parse one written line into a practisable question. */
+function parseLine(raw) {
+  const line = String(raw).trim();
+  if (!line || line[0] === '#') return null;
+
+  const halves = norm(line).split('=');
+  if (halves.length > 2) throw Bad('only one = sign per line');
+
+  const lt = tokenize(halves[0]);
+  const rt = halves.length === 2 ? tokenize(halves[1]) : null;
+  if (!lt.length) throw Bad('nothing before the = sign');
+  if (rt && !rt.length) throw Bad('nothing after the = sign');
+
+  const blanks = lt.filter(t => t.t === 'b').length + (rt ? rt.filter(t => t.t === 'b').length : 0);
+  if (blanks > 1) throw Bad('only one blank per line');
+
+  /* no blank, or the blank is simply the answer slot */
+  const blankIsAnswer = !rt || (rt.length === 1 && rt[0].t === 'b');
+  if (blanks === 0 || (blanks === 1 && blankIsAnswer)) {
+    const answer = evaluate(lt);
+    const q = { prompt: render(lt) + ' =', answer, key: factKey(lt) };
+    if (rt && !blankIsAnswer) {
+      const stated = evaluate(rt);
+      if (Math.abs(stated - answer) > 1e-9)
+        return { warnMismatch: true, prompt: q.prompt, answer, key: q.key, stated };
+    }
+    return q;
+  }
+
+  /* blank sits inside the equation — single step only */
+  if (!rt) throw Bad('a blank needs an = sign and an answer');
+  if (lt.length !== 3 || rt.length !== 1)
+    throw Bad('a blank needs the simple form a × b = c');
+  const opTok = lt[1].t;
+  if ('+-*/'.indexOf(opTok) < 0) throw Bad('a blank needs the simple form a × b = c');
+  const a = lt[0].t === 'b' ? null : lt[0].t === 'n' ? lt[0].v : NaN;
+  const b = lt[2].t === 'b' ? null : lt[2].t === 'n' ? lt[2].v : NaN;
+  const c = rt[0].t === 'b' ? null : rt[0].t === 'n' ? rt[0].v : NaN;
+  if ([a, b, c].some(v => typeof v === 'number' && isNaN(v))) throw Bad('unexpected symbol');
+  const answer = solveBlank(a, opTok, b, c);
+  /* key by the completed fact, so 9 × ☐ = 63 still counts as 7 × 9 */
+  const key = factKey([
+    { t: 'n', v: a === null ? answer : a }, { t: opTok }, { t: 'n', v: b === null ? answer : b }
+  ]);
+  return {
+    prompt: render(lt) + ' = ' + (c === null ? '☐' : fmt(c)),
+    answer, key, blank: true
+  };
+}
+
+/* Canonical name for a fact, so stats survive re-typing. */
+function factKey(tokens) {
+  if (tokens.length === 3 && tokens[0].t === 'n' && tokens[2].t === 'n' && '+-*/'.indexOf(tokens[1].t) > -1) {
+    let a = tokens[0].v, b = tokens[2].v, o = tokens[1].t;
+    if ((o === '+' || o === '*') && a > b) { const s = a; a = b; b = s; }
+    return a + GLYPH[o] + b;
+  }
+  return render(tokens);
+}
+
+/* Lint a whole textarea. */
+function lintText(text) {
+  const rows = [], items = [];
+  String(text).split('\n').forEach((raw, i) => {
+    if (!raw.trim()) return;
+    try {
+      const q = parseLine(raw);
+      if (!q) return;
+      const whole = Number.isInteger(q.answer);
+      const shown = q.blank ? q.prompt + '   ☐ = ' + fmt(q.answer) : q.prompt + ' ' + fmt(q.answer);
+      if (q.warnMismatch) {
+        rows.push({ k: 'err', n: i + 1, t: raw.trim() + ' — you wrote ' + fmt(q.stated) + ', it works out to ' + fmt(q.answer) });
+      } else if (!whole) {
+        rows.push({ k: 'warn', n: i + 1, t: shown + ' — not a whole number' });
+        items.push(q);
+      } else {
+        rows.push({ k: 'ok', n: i + 1, t: shown });
+        items.push(q);
+      }
+    } catch (e) {
+      rows.push({ k: 'err', n: i + 1, t: raw.trim() + ' — ' + (e.soft ? e.message : 'cannot read this line') });
+    }
+  });
+  return { rows, items };
+}
+
+/* ==========================================================
+   QUESTION SOURCES
+   Both satisfy the same shape: next() -> {prompt, answer, key}
+   ========================================================== */
+const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
+function generator(cfg) {
+  const seen = new Set();
+  const lo = Math.min(cfg.min, cfg.max), hi = Math.max(cfg.min, cfg.max);
+  const ops = cfg.ops.length ? cfg.ops : ['+'];
+  function one() {
+    const op = ops[rnd(0, ops.length - 1)];
+    let a = rnd(lo, hi), b = rnd(lo, hi), answer;
+    if (op === '+') { answer = a + b; }
+    else if (op === '−') { if (!cfg.allowNeg && a < b) { const s = a; a = b; b = s; } answer = a - b; }
+    else if (op === '×') { answer = a * b; }
+    else { b = Math.max(1, b); const q = rnd(Math.max(1, lo), hi); a = b * q; answer = q; }
+    if (cfg.noTrivial) {
+      if ((op === '×' && (a <= 1 || b <= 1)) || ((op === '+' || op === '−') && (a === 0 || b === 0)) || (op === '÷' && b === 1)) return null;
+    }
+    const glyph = op === '−' ? '−' : op;
+    let A = a, B = b;
+    if ((op === '+' || op === '×') && A > B) { const s = A; A = B; B = s; }
+    return { prompt: a + ' ' + glyph + ' ' + b + ' =', answer, key: A + glyph + B };
+  }
+  return {
+    next() {
+      for (let i = 0; i < 60; i++) {
+        const q = one();
+        if (q && !seen.has(q.key)) { seen.add(q.key); return q; }
+      }
+      seen.clear();
+      let q = null, guard = 0;
+      while (!q && guard++ < 60) q = one();
+      return q || { prompt: '1 + 1 =', answer: 2, key: '1+1' };
+    }
+  };
+}
+
+function fromSet(set) {
+  const pool = set.items.slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = rnd(0, i); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+  let i = 0;
+  return { size: pool.length, next() { return i < pool.length ? pool[i++] : null; } };
+}
+
+/* ==========================================================
+   SESSION — timing, scoring, and the Leitner re-queue
+   ========================================================== */
+const LEITNER = [2, 5, 11];
+
+function Session(source, cfg, limit) {
+  return {
+    source, cfg, limit,
+    asked: 0, correct: 0, times: [], misses: [], done: false,
+    pending: [], current: null, shownAt: 0,
+    take() {
+      const due = this.pending.findIndex(p => p.at <= this.asked);
+      if (due > -1) return this.pending.splice(due, 1)[0].q;
+      return this.source.next();
+    },
+    next() {
+      if (this.limit && this.asked >= this.limit && !this.pending.length) { this.done = true; return null; }
+      const q = this.take();
+      if (!q) {
+        if (this.pending.length) { const p = this.pending.shift(); this.current = p.q; this.shownAt = performance.now(); return p.q; }
+        this.done = true; return null;
+      }
+      this.current = q; this.shownAt = performance.now();
+      return q;
+    },
+    judge(value) {
+      const q = this.current, ms = performance.now() - this.shownAt;
+      const ok = Math.abs(value - q.answer) < 1e-9;
+      this.asked++; this.times.push(ms);
+      if (ok) this.correct++; else this.misses.push({ prompt: q.prompt, answer: q.answer, gave: value, ms });
+      /* fact record */
+      const f = S.facts[q.key] || (S.facts[q.key] = { n: 0, ok: 0, ms: 0 });
+      f.n++; if (ok) { f.ok++; f.ms = f.ms ? (f.ms * 0.7 + ms * 0.3) : ms; }
+      /* re-queue misses */
+      if (!ok && this.cfg.repeat) {
+        q.box = 0;
+        this.pending.push({ q, at: this.asked + LEITNER[0] });
+      } else if (ok) {
+        const idx = this.pending.findIndex(p => p.q.key === q.key);
+        if (idx > -1) this.pending.splice(idx, 1);
+      }
+      return { ok, ms, answer: q.answer };
+    }
+  };
+}
+
+const median = a => {
+  if (!a.length) return 0;
+  const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+const today = () => new Date().toISOString().slice(0, 10);
+
+function bumpStreak() {
+  const t = today();
+  if (S.streak.last === t) return;
+  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  S.streak.n = S.streak.last === y ? S.streak.n + 1 : 1;
+  S.streak.last = t;
+}
+/* ==========================================================
+   UI LAYER
+   ========================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.prototype.slice.call(document.querySelectorAll(s));
+const dark = () => window.matchMedia('(prefers-color-scheme:dark)').matches;
+
+let screen = 'home';
+function show(id) {
+  screen = id;
+  $$('.screen').forEach(el => el.classList.toggle('on', el.id === id));
+  const b = document.querySelector('#' + id + ' .body'); if (b) b.scrollTop = 0;
+  if (id === 'home') paintHome();
+  if (id === 'sets') paintSets();
+  if (id === 'stats') paintStats();
+  if (id === 'settings') paintSettings();
+}
+$$('[data-back]').forEach(b => b.addEventListener('click', () => show(b.dataset.back)));
+
+/* ---------- feedback effects ---------- */
+let ac = null;
+function blip(freq, ms, gain) {
+  if (!S.cfg.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + ms / 1000);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + ms / 1000);
+  } catch (e) { /* audio is a nicety, never a blocker */ }
+}
+const buzz = p => { if (S.cfg.haptics && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} };
+
+/* ==========================================================
+   HOME
+   ========================================================== */
+function paintHome() {
+  $('#streakN').textContent = S.streak.n || 0;
+  $('#streakT').textContent = (S.streak.n === 1 ? 'day streak' : 'day streak') +
+    (S.streak.last === today() ? ' · practised today' : '');
+  $$('#opChips .chip').forEach(c => c.setAttribute('aria-pressed', S.cfg.ops.indexOf(c.dataset.op) > -1));
+  $$('#modeChips .chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.mode === S.cfg.mode));
+  $('#rangeEcho').textContent = S.cfg.min; $('#rangeEcho2').textContent = S.cfg.max;
+  $('#setsSub').textContent = S.sets.length
+    ? S.sets.length + (S.sets.length === 1 ? ' set' : ' sets')
+    : 'No sets yet';
+  $('#startBtn').disabled = !S.cfg.ops.length;
+}
+$$('#opChips .chip').forEach(c => c.addEventListener('click', () => {
+  const op = c.dataset.op, i = S.cfg.ops.indexOf(op);
+  if (i > -1) S.cfg.ops.splice(i, 1); else S.cfg.ops.push(op);
+  save(); paintHome();
+}));
+$$('#modeChips .chip').forEach(c => c.addEventListener('click', () => {
+  S.cfg.mode = c.dataset.mode; save(); paintHome();
+}));
+$('#toSettings').addEventListener('click', () => show('settings'));
+$('#toSets').addEventListener('click', () => show('sets'));
+$('#toStats').addEventListener('click', () => show('stats'));
+$('#startBtn').addEventListener('click', () => startSession(null));
+
+/* ==========================================================
+   PRACTICE
+   ========================================================== */
+let ses = null, typed = '', neg = false, locked = false, tick = null, endsAt = 0, needsDot = false, lastSet = null;
+
+function startSession(set) {
+  lastSet = set;
+  const cfg = S.cfg;
+  let source, limit;
+  if (set) {
+    source = fromSet(set); limit = null;
+    needsDot = set.items.some(q => !Number.isInteger(q.answer));
+  } else {
+    source = generator(cfg);
+    limit = cfg.mode === 'count' ? cfg.count : null;
+    needsDot = false;
+  }
+  ses = Session(source, cfg, limit);
+  $('#negKey').innerHTML = needsDot ? '.' : '&minus;';
+  $('#pad').style.direction = 'ltr';
+  $('#negKey').style.order = cfg.lefty ? '-1' : '0';
+  show('practice');
+  if (cfg.mode === 'sprint' && !set) {
+    endsAt = Date.now() + cfg.seconds * 1000;
+    tick = setInterval(paintTimer, 200);
+  } else { endsAt = 0; $('#timer').textContent = ''; }
+  paintTimer(); advance(true);
+}
+
+function paintTimer() {
+  if (endsAt) {
+    const left = Math.max(0, endsAt - Date.now());
+    $('#timer').textContent = (left / 1000).toFixed(1);
+    $('#progBar').style.width = (left / (S.cfg.seconds * 1000) * 100) + '%';
+    if (left <= 0) finish();
+  } else if (ses && ses.limit) {
+    $('#timer').textContent = ses.asked + '/' + ses.limit;
+    $('#progBar').style.width = (ses.asked / ses.limit * 100) + '%';
+  } else if (ses) {
+    $('#timer').textContent = String(ses.asked);
+    $('#progBar').style.width = '0%';
+  }
+}
+
+function advance(first) {
+  const q = ses.next();
+  if (!q) return finish();
+  typed = ''; neg = false; locked = false;
+  const w = $('#qwrap');
+  const put = () => {
+    $('#qText').textContent = q.prompt;
+    $('#verdict').textContent = ''; $('#verdict').className = 'verdict';
+    paintAnswer();
+    w.classList.remove('out'); w.classList.add('in');
+    setTimeout(() => w.classList.remove('in'), 200);
+  };
+  if (first) put(); else { w.classList.add('out'); setTimeout(put, 165); }
+  paintTimer();
+}
+
+function paintAnswer() {
+  const el = $('#aText');
+  const a = ses.current ? ses.current.answer : 0;
+  const showPh = S.cfg.autoSubmit && Number.isInteger(a) && a >= 0;
+  const len = showPh ? String(a).length : 0;
+  let html = '';
+  if (neg) html += '<span>&minus;</span>';
+  html += typed.split('').map(ch => '<span>' + (ch === '.' ? '.' : ch) + '</span>').join('');
+  if (showPh) for (let i = typed.length; i < len; i++) html += '<span class="ph">0</span>';
+  html += '<span class="caret"></span>';
+  el.innerHTML = html;
+}
+
+function press(k) {
+  if (locked || !ses || !ses.current) return;
+  if (k === 'del') { if (typed) typed = typed.slice(0, -1); else neg = false; }
+  else if (k === 'neg') { if (needsDot) { if (typed.indexOf('.') < 0 && typed) typed += '.'; } else neg = !neg; }
+  else if (k === 'dot') { if (typed.indexOf('.') < 0 && typed) typed += '.'; }
+  else if (k === 'go') return submit();
+  else if (/^[0-9]$/.test(k)) { if (typed.length < 9) typed += k; }
+  paintAnswer();
+  if (S.cfg.autoSubmit && typed.length) {
+    const a = ses.current.answer;
+    if (Number.isInteger(a) && a >= 0 && !neg && typed.length === String(a).length) setTimeout(submit, 30);
+  }
+}
+
+function submit() {
+  if (locked || !typed.length) return;
+  locked = true;
+  const value = parseFloat((neg ? '-' : '') + typed);
+  const r = ses.judge(value);
+  const v = $('#verdict'), w = $('#qwrap');
+  if (r.ok) {
+    v.textContent = 'Correct'; v.className = 'verdict g';
+    blip(920, 60, .05); buzz(12);
+    setTimeout(() => advance(false), 190);
+  } else {
+    v.textContent = fmt(r.answer); v.className = 'verdict b';
+    blip(170, 150, .06); buzz([16, 40, 16]);
+    w.classList.add('shake'); setTimeout(() => w.classList.remove('shake'), 320);
+    setTimeout(() => advance(false), 1250);
+  }
+  paintTimer();
+}
+
+$('#pad').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (b) press(b.dataset.k);
+});
+$('#quitBtn').addEventListener('click', () => finish(true));
+
+document.addEventListener('keydown', e => {
+  if (screen !== 'practice') return;
+  if (/^[0-9]$/.test(e.key)) { press(e.key); e.preventDefault(); }
+  else if (e.key === 'Backspace') { press('del'); e.preventDefault(); }
+  else if (e.key === 'Enter' || e.key === '=') { press('go'); e.preventDefault(); }
+  else if (e.key === '-') { press('neg'); e.preventDefault(); }
+  else if (e.key === '.') { press('dot'); e.preventDefault(); }
+  else if (e.key === 'Escape') finish(true);
+});
+
+function finish(early) {
+  if (tick) { clearInterval(tick); tick = null; }
+  const s = ses; ses = null;
+  if (!s || !s.asked) return show('home');
+  bumpStreak();
+  const acc = s.correct / s.asked, med = median(s.times);
+  S.history.push({ d: today(), n: s.asked, ok: s.correct, med: Math.round(med) });
+  if (S.history.length > 400) S.history = S.history.slice(-400);
+  save();
+
+  $('#sumScore').innerHTML = s.correct + '<small> / ' + s.asked + '</small>';
+  $('#sumLine').textContent = early ? 'Stopped early — still counted.'
+    : acc === 1 ? 'Every one correct.' : acc >= .8 ? 'Solid run.' : 'Plenty to work on.';
+  $('#mAcc').textContent = Math.round(acc * 100) + '%';
+  $('#mSpeed').textContent = (med / 1000).toFixed(1) + 's';
+  $('#mBest').textContent = (Math.min.apply(null, s.times) / 1000).toFixed(1) + 's';
+  $('#mCount').textContent = s.asked;
+
+  const seen = {}, miss = s.misses.filter(m => (seen[m.prompt] ? false : (seen[m.prompt] = 1)));
+  $('#missWrap').style.display = miss.length ? '' : 'none';
+  $('#missList').innerHTML = miss.slice(0, 12).map(m =>
+    '<div class="review"><span>' + m.prompt + ' <b>' + fmt(m.answer) + '</b></span>' +
+    '<span class="was">you put ' + fmt(m.gave) + '</span></div>').join('');
+  show('summary');
+}
+$('#sumDone').addEventListener('click', () => show('home'));
+$('#againBtn').addEventListener('click', () => startSession(lastSet));
+
+/* ==========================================================
+   SETS
+   ========================================================== */
+function paintSets() {
+  const has = S.sets.length > 0;
+  $('#setsEmpty').style.display = has ? 'none' : '';
+  $('#setsList').style.display = has ? '' : 'none';
+  $('#setsHint').style.display = has ? '' : 'none';
+  $('#setsList').innerHTML = S.sets.map((s, i) =>
+    '<div class="row"><button class="lbl" data-play="' + i + '" style="text-align:left">' +
+    esc(s.name) + '<span class="sub2">' + s.items.length +
+    (s.items.length === 1 ? ' question' : ' questions') + '</span></button>' +
+    '<button class="link-btn" data-edit="' + i + '">Edit</button></div>').join('');
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+$('#setsList').addEventListener('click', e => {
+  const p = e.target.closest('[data-play]'), ed = e.target.closest('[data-edit]');
+  if (p) { const s = S.sets[+p.dataset.play]; if (s && s.items.length) startSession(s); }
+  else if (ed) openEditor(+ed.dataset.edit);
+});
+$('#newSet').addEventListener('click', () => openEditor(-1));
+$('#newSet2').addEventListener('click', () => openEditor(-1));
+
+/* ---------- editor ---------- */
+let edIndex = -1, lintTimer = null;
+function openEditor(i) {
+  edIndex = i;
+  const s = i > -1 ? S.sets[i] : null;
+  $('#edTitle').textContent = s ? 'Edit set' : 'New set';
+  $('#edName').value = s ? s.name : '';
+  $('#edText').value = s ? (s.raw || s.items.map(q => q.prompt.replace(' =', '')).join('\n')) : '';
+  $('#delSet').style.display = s ? '' : 'none';
+  show('editor'); runLint();
+}
+function runLint() {
+  const { rows, items } = lintText($('#edText').value);
+  const bad = rows.filter(r => r.k === 'err').length;
+  $('#edTally').innerHTML = rows.length
+    ? '<span>' + items.length + ' ready</span>' + (bad ? '<span style="color:var(--bad)">' + bad + ' to fix</span>' : '')
+    : '';
+  $('#edLint').innerHTML = rows.slice(0, 60).map(r =>
+    '<div class="ln ' + r.k + '"><span class="m">' + (r.k === 'ok' ? '✓' : r.k === 'warn' ? '!' : '✕') +
+    '</span><span class="t">' + esc(r.t) + '</span></div>').join('');
+  return items;
+}
+$('#edText').addEventListener('input', () => { clearTimeout(lintTimer); lintTimer = setTimeout(runLint, 220); });
+$('#saveSet').addEventListener('click', () => {
+  const items = runLint();
+  if (!items.length) { $('#edTally').innerHTML = '<span style="color:var(--bad)">Add at least one question that reads correctly.</span>'; return; }
+  const rec = {
+    name: ($('#edName').value.trim() || 'Untitled set'),
+    raw: $('#edText').value, items
+  };
+  if (edIndex > -1) S.sets[edIndex] = rec; else S.sets.push(rec);
+  save(); show('sets');
+});
+$('#delSet').addEventListener('click', () => {
+  if (edIndex > -1 && confirm('Delete this set? The questions cannot be recovered.')) {
+    S.sets.splice(edIndex, 1); save(); show('sets');
+  }
+});
+
+/* ==========================================================
+   STATS
+   ========================================================== */
+function heatColor(acc) {
+  const h = 6 + acc * 136, l = dark() ? 24 + acc * 14 : 84 - acc * 30;
+  return 'hsl(' + h.toFixed(0) + ' 60% ' + l.toFixed(0) + '%)';
+}
+function paintStats() {
+  const n = S.history.length;
+  const tot = S.history.reduce((a, h) => a + h.n, 0);
+  const ok = S.history.reduce((a, h) => a + h.ok, 0);
+  $('#sSessions').textContent = n;
+  $('#sAnswered').textContent = tot;
+  $('#sAcc').textContent = tot ? Math.round(ok / tot * 100) + '%' : '—';
+  $('#sSpeed').textContent = n ? (median(S.history.map(h => h.med)) / 1000).toFixed(1) + 's' : '—';
+
+  let html = '<tr><th></th>';
+  for (let b = 1; b <= 12; b++) html += '<th>' + b + '</th>';
+  html += '</tr>';
+  for (let a = 1; a <= 12; a++) {
+    html += '<tr><th>' + a + '</th>';
+    for (let b = 1; b <= 12; b++) {
+      const k = Math.min(a, b) + '×' + Math.max(a, b), f = S.facts[k];
+      html += f && f.n
+        ? '<td class="on" style="background:' + heatColor(f.ok / f.n) + '" data-k="' + k + '" data-n="' + f.n + '" data-a="' + Math.round(f.ok / f.n * 100) + '"></td>'
+        : '<td></td>';
+    }
+    html += '</tr>';
+  }
+  $('#heat').innerHTML = html;
+  [0, .34, .67, 1].forEach((v, i) => { $('#lg' + (i + 1)).style.background = heatColor(v); });
+  $('#heatTip').textContent = 'Tap a square';
+
+  const last = S.history.slice(-20);
+  $('#spark').innerHTML = last.length
+    ? last.map(h => '<i style="height:' + Math.max(4, (h.ok / h.n) * 100) + '%"></i>').join('')
+    : '<i style="height:4%"></i>';
+}
+$('#heat').addEventListener('click', e => {
+  const td = e.target.closest('td.on'); if (!td) return;
+  $('#heatTip').textContent = td.dataset.k + ' · ' + td.dataset.a + '% of ' + td.dataset.n;
+});
+$('#exportBtn').addEventListener('click', () => {
+  const blob = JSON.stringify({ v: 1, cfg: S.cfg, facts: S.facts, history: S.history, sets: S.sets, streak: S.streak });
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(blob).then(
+      () => alert('Backup copied. Paste it somewhere safe.'),
+      () => prompt('Copy this backup:', blob));
+  } else prompt('Copy this backup:', blob);
+});
+$('#importBtn').addEventListener('click', () => {
+  const txt = prompt('Paste a backup:');
+  if (!txt) return;
+  try {
+    const d = JSON.parse(txt);
+    if (!d || !d.v) throw 0;
+    S.cfg = Object.assign({}, DEFAULTS, d.cfg || {});
+    S.facts = d.facts || {}; S.history = d.history || []; S.sets = d.sets || [];
+    S.streak = d.streak || { last: null, n: 0 };
+    save(); paintStats();
+    alert('Backup restored.');
+  } catch (e) { alert('That does not look like a Drill backup.'); }
+});
+$('#wipeBtn').addEventListener('click', () => {
+  if (!confirm('Reset every session, statistic and set? This cannot be undone.')) return;
+  S.facts = {}; S.history = []; S.sets = []; S.streak = { last: null, n: 0 };
+  save(); paintStats();
+});
+
+/* ==========================================================
+   SETTINGS
+   ========================================================== */
+function paintSettings() {
+  $('#setMin').value = S.cfg.min; $('#setMax').value = S.cfg.max;
+  $$('[data-t]').forEach(r => r.querySelector('.sw').setAttribute('aria-checked', !!S.cfg[r.dataset.t]));
+}
+$$('[data-t]').forEach(r => r.addEventListener('click', () => {
+  S.cfg[r.dataset.t] = !S.cfg[r.dataset.t]; save(); paintSettings();
+}));
+['#setMin', '#setMax'].forEach(sel => $(sel).addEventListener('change', () => {
+  let lo = parseInt($('#setMin').value, 10), hi = parseInt($('#setMax').value, 10);
+  if (isNaN(lo)) lo = 2; if (isNaN(hi)) hi = 12;
+  lo = Math.max(0, Math.min(99, lo)); hi = Math.max(1, Math.min(999, hi));
+  if (hi < lo) hi = lo + 1;
+  S.cfg.min = lo; S.cfg.max = hi; save(); paintSettings();
+}));
+
+/* ---------- go ---------- */
+paintHome();
+if (!Store.live) {
+  const p = document.createElement('p');
+  p.className = 'hint';
+  p.style.color = 'var(--bad)';
+  p.textContent = 'Storage is blocked here, so progress will not survive a reload. Download this file and open it from your own computer to keep your history.';
+  document.querySelector('#home .body').appendChild(p);
+}
+
+/* ---------- offline shell ---------- */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
