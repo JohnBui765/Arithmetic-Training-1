@@ -1,0 +1,35 @@
+{
+  "drill.cfg": {"ops": ["+", "−", "×", "÷"], "min": 2, "max": 12, "mode": "count", "count": 20, "seconds": 60, "allowNeg": false, "noTrivial": true, "repeat": true, "autoSubmit": true, "sound": true, "haptics": true, "lefty": false},
+  "drill.facts": {
+    "6×7": {"n": 10, "ok": 9, "ms": 1800.2},
+    "8×9": {"n": 10, "ok": 5, "ms": 3100.0},
+    "7×8": {"n": 10, "ok": 6, "ms": 2400.5},
+    "3+9": {"n": 12, "ok": 12, "ms": 900.4},
+    "15−7": {"n": 8, "ok": 4, "ms": 2900.7},
+    "56÷8": {"n": 10, "ok": 8, "ms": 2000.0},
+    "7÷2": {"n": 5, "ok": 2, "ms": 3500.9},
+    "12×12": {"n": 10, "ok": 10, "ms": 1500.3},
+    "13+29": {"n": 6, "ok": 3, "ms": 4200.0},
+    "83−47": {"n": 9, "ok": 8, "ms": 2600.8},
+    "4×6": {"n": 20, "ok": 19, "ms": 1100.1},
+    "9×4": {"n": 7, "ok": 5, "ms": 2700.6}
+  },
+  "drill.history": [
+    {"d": "2026-10-10", "n": 20, "ok": 15, "med": 2600},
+    {"d": "2026-10-11", "n": 20, "ok": 16, "med": 2400},
+    {"d": "2026-10-12", "n": 20, "ok": 17, "med": 2100},
+    {"d": "2026-10-13", "n": 20, "ok": 19, "med": 1900}
+  ],
+  "drill.sets": [
+    {"name": "Nine times table", "raw": "9 x 3\n9 x 7\n9 x _ = 63", "items": [
+      {"prompt": "9 × 3 =", "answer": 27, "key": "3×9"},
+      {"prompt": "9 × 7 =", "answer": 63, "key": "7×9"},
+      {"prompt": "9 × ☐ = 63", "answer": 7, "key": "7×9", "blank": true}
+    ]},
+    {"name": "Halves", "raw": "7 / 2\n9 / 2", "items": [
+      {"prompt": "7 ÷ 2 =", "answer": 3.5, "key": "7÷2"},
+      {"prompt": "9 ÷ 2 =", "answer": 4.5, "key": "9÷2"}
+    ]}
+  ],
+  "drill.streak": {"last": "2026-10-13", "n": 3}
+}

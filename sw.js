@@ -1,13 +1,17 @@
 /* Drill — offline shell.
    Bump CACHE after you change index.html, or phones keep the old copy. */
-const CACHE = 'drill-v1';
+const CACHE = 'drill-v3';
 const SHELL = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  /* cache: 'reload' skips the browser's HTTP cache (GitHub Pages allows 10 minutes),
+     so a new CACHE never fills up with the previous release's files */
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

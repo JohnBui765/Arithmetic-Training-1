@@ -7,8 +7,11 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Drill">
+<meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
 <title>Drill — arithmetic practice</title>
 <style>
 /* ============================================================
@@ -51,6 +54,7 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
   font-family:var(--f-text);
   background:var(--paper); color:var(--ink);
@@ -81,6 +85,7 @@ button{background:none;border:0;padding:0;cursor:pointer;touch-action:manipulati
   border-radius:50%;color:var(--ink);font-size:17px;
 }
 .icon-btn:active{background:var(--press)}
+.icon-btn svg{width:22px;height:22px}
 .link-btn{font-size:16px;color:var(--ink);font-weight:500;padding:10px 2px}
 .link-btn:active{opacity:.45}
 
@@ -138,6 +143,30 @@ button.row:active{background:var(--press)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .chip:active{transform:scale(.94)}
 .chip.op{font-size:19px;min-width:52px;font-family:var(--f-display)}
+.chip:disabled{opacity:.35;pointer-events:none}
+.seg{display:grid;grid-template-columns:repeat(5,1fr)}
+.seg .chip{text-align:center;padding:9px 4px;min-width:0}
+
+/* ---------- size tiles: big figure, small caption ---------- */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{
+  background:var(--card);border-radius:11px;padding:8px 2px 7px;min-height:52px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  color:var(--ink-2);transition:all var(--dur) var(--ease);overflow:hidden;
+}
+.tile b{font-family:var(--f-display);font-size:17px;font-weight:500;letter-spacing:-.01em;white-space:nowrap}
+.tile span{font-size:11px;color:var(--ink-3);letter-spacing:.01em}
+.tile[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tile[aria-pressed="true"] span{color:var(--paper);opacity:.7}
+.tile:active{transform:scale(.94)}
+
+/* ---------- bottom dock: the primary action sits under the thumb ---------- */
+.dock{
+  flex:none;background:var(--paper);box-shadow:0 -1px 0 var(--hair);
+  padding:10px var(--pad) calc(env(safe-area-inset-bottom) + 10px);
+}
+.dock .cap{font-size:13px;color:var(--ink-3);text-align:center;margin:0 0 9px;min-height:16px;letter-spacing:-.005em}
+#home .body{padding-bottom:16px}
 
 /* ---------- streak strip ---------- */
 .streak{display:flex;align-items:baseline;gap:8px;margin:2px 4px 18px}
@@ -147,7 +176,9 @@ button.row:active{background:var(--press)}
 /* ============================================================
    PRACTICE
    ============================================================ */
+#practice{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #practice .body{display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding-bottom:0}
+.seg-lbl{flex:1;text-align:center;font-size:13px;font-weight:500;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
 .qwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:0}
 .q{
   font-family:var(--f-display);
@@ -182,19 +213,24 @@ button.row:active{background:var(--press)}
 
 /* ---------- keypad ---------- */
 .pad{
-  flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+  flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:9px;
   padding:12px var(--pad) calc(env(safe-area-inset-bottom) + 12px);
 }
+/* left-handed: mirror the columns, so Enter and Delete sit under the left thumb */
+.pad.lefty{direction:rtl}
 .pad button{
-  height:min(13.5vh,66px);min-height:52px;
+  direction:ltr;
+  height:clamp(48px,8.4vh,62px);
   border-radius:var(--r);background:var(--card);
   font-family:var(--f-display);font-size:26px;font-weight:400;
   display:grid;place-items:center;
   transition:transform .1s var(--ease),background .1s var(--ease);
 }
-.pad button:active{background:var(--press);transform:scale(.95)}
-.pad button.fn{font-size:20px;color:var(--ink-2)}
-.pad button.go{background:var(--ink);color:var(--paper);font-size:19px;font-weight:600}
+.pad button:active,.pad button.down{background:var(--press);transform:scale(.95)}
+.pad button.fn{font-size:21px;color:var(--ink-2)}
+.pad button.go{grid-row:span 2;height:auto;background:var(--ink);color:var(--paper);font-size:26px;font-weight:500}
+.pad button.go:active,.pad button.go.down{background:var(--ink);opacity:.82}
+.pad button:disabled{background:transparent;color:transparent;pointer-events:none}
 
 /* ============================================================
    SUMMARY
@@ -267,18 +303,32 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
 <!-- ================= HOME ================= -->
 <section class="screen on" id="home">
   <div class="bar"><h1>Drill</h1><div class="sp"></div>
-    <button class="icon-btn" id="toSettings" aria-label="Settings">&#9881;</button>
+    <button class="icon-btn" id="toSettings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
   <div class="body">
     <div class="streak"><b id="streakN">—</b><span id="streakT">day streak</span></div>
 
     <div class="eyebrow" style="margin-top:0">Practise</div>
-    <div class="chips" id="opChips">
+    <div class="chips seg" id="opChips">
       <button class="chip op" data-op="+" aria-pressed="true">+</button>
       <button class="chip op" data-op="−" aria-pressed="true">−</button>
       <button class="chip op" data-op="×" aria-pressed="true">×</button>
       <button class="chip op" data-op="÷" aria-pressed="true">÷</button>
+      <button class="chip op" id="signChip" aria-label="Negative numbers" aria-pressed="false">&plusmn;</button>
     </div>
+
+    <div class="eyebrow">Size</div>
+    <div class="tiles" id="shapeChips">
+      <button class="tile" data-shape="facts" aria-label="Facts to 12"><b>&le; 12</b><span>Facts</span></button>
+      <button class="tile" data-shape="teens" aria-label="Teens to 19"><b>&le; 19</b><span>Teens</span></button>
+      <button class="tile" data-shape="squares" aria-label="Squares to 99"><b>n&sup2;</b><span>Squares</span></button>
+      <button class="tile" data-shape="custom" aria-label="Custom range"><b id="customBig">2&ndash;12</b><span>Custom</span></button>
+      <button class="tile" data-shape="d21" aria-label="2-digit by 1-digit"><b>2 &middot; 1</b><span>digits</span></button>
+      <button class="tile" data-shape="d22" aria-label="2-digit by 2-digit"><b>2 &middot; 2</b><span>digits</span></button>
+      <button class="tile" data-shape="d31" aria-label="3-digit by 1-digit"><b>3 &middot; 1</b><span>digits</span></button>
+      <button class="tile" data-shape="d33" aria-label="3-digit by 3-digit"><b>3 &middot; 3</b><span>digits</span></button>
+    </div>
+    <p class="hint" id="shapeHint"></p>
 
     <div class="eyebrow">Session</div>
     <div class="chips" id="modeChips">
@@ -287,14 +337,15 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
       <button class="chip" data-mode="endless" aria-pressed="false">Endless</button>
     </div>
 
-    <div style="margin-top:26px"><button class="cta" id="startBtn">Start</button></div>
-
     <div class="eyebrow">Your material</div>
     <div class="list">
       <button class="row" id="toSets"><span class="lbl">My sets<span class="sub2" id="setsSub">No sets yet</span></span><span class="chev">&rsaquo;</span></button>
-      <button class="row" id="toStats"><span class="lbl">Progress</span><span class="chev">&rsaquo;</span></button>
+      <button class="row" id="toStats"><span class="lbl">Progress<span class="sub2" id="statsSub"></span></span><span class="chev">&rsaquo;</span></button>
     </div>
-    <p class="hint">Numbers range from <b id="rangeEcho">2</b> to <b id="rangeEcho2">12</b>. Change that in Settings.</p>
+  </div>
+  <div class="dock">
+    <p class="cap" id="startInfo"></p>
+    <button class="cta" id="startBtn">Start</button>
   </div>
 </section>
 
@@ -302,7 +353,7 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
 <section class="screen" id="practice">
   <div class="bar">
     <button class="icon-btn" id="quitBtn" aria-label="End session">&times;</button>
-    <div class="sp"></div>
+    <div class="seg-lbl" id="segLbl"></div>
     <div class="timer" id="timer"></div>
   </div>
   <div class="progress"><i id="progBar" style="width:0%"></i></div>
@@ -315,11 +366,14 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
   </div>
   <div class="pad" id="pad">
     <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
-    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
-    <button class="fn" data-k="neg" id="negKey">&minus;</button>
-    <button data-k="0">0</button>
     <button class="fn" data-k="del" aria-label="Delete">&#9003;</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button class="fn" data-k="neg" id="negKey" aria-label="Plus or minus">&plusmn;</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="go" data-k="go" aria-label="Enter">&#8629;</button>
+    <button class="fn" data-k="dot" id="dotKey" aria-label="Decimal point">.</button>
+    <button data-k="0">0</button>
+    <button class="fn" data-k="k3" disabled aria-hidden="true"></button>
   </div>
 </section>
 
@@ -409,6 +463,13 @@ placeholder="7 x 8
     <div class="grid-wrap"><table class="hm" id="heat"></table></div>
     <div class="legend"><span>Weak</span><i id="lg1"></i><i id="lg2"></i><i id="lg3"></i><i id="lg4"></i><span>Strong</span>
       <span style="margin-left:auto" id="heatTip">Tap a square</span></div>
+    <div class="eyebrow">Review</div>
+    <div class="list">
+      <div class="row"><span class="lbl">Due today</span><span class="val" id="rvDue">0</span></div>
+      <div class="row"><span class="lbl">Learning</span><span class="val" id="rvLearn">0</span></div>
+      <div class="row"><span class="lbl">Learned</span><span class="val" id="rvDone">0</span></div>
+    </div>
+    <p class="hint">A missed fact comes back the same day, then after 1, 3, 7 and 21 days. Answer it right and in good time at each step and it counts as learned. Due facts come first when you start.</p>
     <div class="eyebrow">Accuracy, last 20 sessions</div>
     <div class="spark" id="spark"></div>
     <div class="eyebrow">Data</div>
@@ -427,7 +488,7 @@ placeholder="7 x 8
     <h1>Settings</h1><div class="sp"></div>
   </div>
   <div class="body">
-    <div class="eyebrow" style="margin-top:6px">Numbers</div>
+    <div class="eyebrow" style="margin-top:6px">Custom size</div>
     <div class="list">
       <div class="row"><span class="lbl">Smallest</span>
         <input class="val" id="setMin" type="number" min="0" max="99" style="width:64px;text-align:right;background:none;border:0"></div>
@@ -443,20 +504,39 @@ placeholder="7 x 8
     <div class="eyebrow">Answering</div>
     <div class="list">
       <button class="row" data-t="autoSubmit"><span class="lbl">Submit automatically<span class="sub2">As soon as the answer is long enough</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="showLen"><span class="lbl">Show answer length<span class="sub2">Grey digits show how long the answer is</span></span><span class="sw" role="switch"></span></button>
       <button class="row" data-t="sound"><span class="lbl">Sound</span><span class="sw" role="switch"></span></button>
-      <button class="row" data-t="haptics"><span class="lbl">Vibration<span class="sub2">Android only — iOS browsers do not allow it</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="haptics"><span class="lbl">Haptics<span class="sub2">A light tap on every key. iPhone needs iOS 18 or later.</span></span><span class="sw" role="switch"></span></button>
       <button class="row" data-t="lefty"><span class="lbl">Left-handed keypad</span><span class="sw" role="switch"></span></button>
     </div>
-    <p class="hint">Keyboard works too: digits, <b>Backspace</b>, <b>Enter</b>, <b>Esc</b> to stop.</p>
+    <p class="hint">Keyboard works too: digits, <b>-</b>, <b>.</b>, <b>Backspace</b>, <b>Enter</b>, <b>Esc</b> to stop.</p>
   </div>
 </section>
 </div>
+<!-- iOS 18+ plays a system haptic when a native switch flips; this hidden one stands in for navigator.vibrate -->
+<label id="hapt" aria-hidden="true" style="display:none"><input type="checkbox" switch tabindex="-1"></label>
 <script>
 /* ==========================================================
    DRILL — arithmetic practice
    Engine layer. No DOM below this line until Part D.
    ========================================================== */
 'use strict';
+const VERSION = 'drill-v3';   /* keep in step with CACHE in sw.js */
+
+/* ---------- randomness: one seedable source; ?seed=N replays a session ---------- */
+const SEED = (() => {
+  const m = /[?&]seed=(\d+)/.exec(location.search);
+  return m ? +m[1] : (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
+})();
+function mulberry32(a) {
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), a | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(SEED);
 
 /* ---------- storage: real if available, memory if not ---------- */
 const Store = (() => {
@@ -478,22 +558,32 @@ const Store = (() => {
 
 /* ---------- app state ---------- */
 const DEFAULTS = {
-  ops: ['+', '−', '×', '÷'], min: 2, max: 12, mode: 'count', count: 20, seconds: 60,
-  allowNeg: false, noTrivial: true, repeat: true,
-  autoSubmit: true, sound: true, haptics: true, lefty: false
+  ops: ['+', '−', '×', '÷'], min: 2, max: 12, shape: 'facts', mode: 'count', count: 20, seconds: 60,
+  allowNeg: false, signed: false, noTrivial: true, repeat: true,
+  autoSubmit: true, showLen: true, sound: true, haptics: true, lefty: false
 };
 
+/* A version 1 cfg has no shape: keep a changed range as Custom so nobody loses it. */
+function loadCfg(saved) {
+  saved = saved || {};
+  const cfg = Object.assign({}, DEFAULTS, saved);
+  if (!saved.shape) cfg.shape = saved.min == null || (saved.min === 2 && saved.max === 12) ? 'facts' : 'custom';
+  return cfg;
+}
+
 const S = {
-  cfg: Object.assign({}, DEFAULTS, Store.get('drill.cfg', {})),
+  cfg: loadCfg(Store.get('drill.cfg', {})),
   facts: Store.get('drill.facts', {}),
   history: Store.get('drill.history', []),
   sets: Store.get('drill.sets', []),
-  streak: Store.get('drill.streak', { last: null, n: 0 })
+  streak: Store.get('drill.streak', { last: null, n: 0 }),
+  srs: Store.get('drill.srs', null)          /* seeded at boot when missing */
 };
 const save = () => {
+  srsPrune();
   Store.set('drill.cfg', S.cfg); Store.set('drill.facts', S.facts);
   Store.set('drill.history', S.history); Store.set('drill.sets', S.sets);
-  Store.set('drill.streak', S.streak);
+  Store.set('drill.streak', S.streak); Store.set('drill.srs', S.srs);
 };
 
 /* ==========================================================
@@ -691,37 +781,181 @@ function lintText(text) {
    QUESTION SOURCES
    Both satisfy the same shape: next() -> {prompt, answer, key}
    ========================================================== */
-const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const rnd = (lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
 
-function generator(cfg) {
-  const seen = new Set();
+/* ---------- dates: local calendar days, never UTC ---------- */
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const today = () => ymd(new Date());
+const addDays = (s, n) => { const p = s.split('-'); return ymd(new Date(+p[0], +p[1] - 1, +p[2] + n)); };
+
+/* ==========================================================
+   SPACED REPETITION — item level, boxes [0, 1, 3, 7, 21] days
+   S.srs[key] = [box, 'YYYY-MM-DD' due]; box 5 = retired.
+   A right answer slower than the fact's target keeps its box:
+   the aim is fast recall, not just recall.
+   ========================================================== */
+const INTERVALS = [0, 1, 3, 7, 21], RETIRED = 5, SRS_MAX = 5000;
+
+function srsUpdate(key, ok, ms, target) {
+  const t = today(), e = S.srs[key], box = e ? e[0] : 0;
+  let next;
+  if (!ok) next = [0, t];
+  else if (ms > target) next = box >= RETIRED ? [4, addDays(t, INTERVALS[4])] : [box, addDays(t, Math.max(1, INTERVALS[box]))];
+  else next = box >= 4 ? [RETIRED, t] : [box + 1, addDays(t, INTERVALS[box + 1])];
+  S.srs[key] = next;
+  return next;
+}
+/* Version 1 facts: weak ones are due today, the rest in 3 days. */
+function seedSrs(facts) {
+  const t = today(), out = {};
+  Object.keys(facts || {}).forEach(k => {
+    const f = facts[k]; if (!f || !f.n) return;
+    out[k] = f.ok / f.n < 0.8 ? [0, t] : [2, addDays(t, 3)];
+  });
+  return out;
+}
+/* Over the cap: drop retired facts first, then those due furthest away. */
+function srsPrune() {
+  if (!S.srs) return;
+  const keys = Object.keys(S.srs);
+  if (keys.length <= SRS_MAX) return;
+  keys.sort((a, b) => (S.srs[b][0] - S.srs[a][0]) || (S.srs[a][1] < S.srs[b][1] ? 1 : -1));
+  keys.slice(0, keys.length - SRS_MAX).forEach(k => { delete S.srs[k]; });
+}
+
+/* ==========================================================
+   SIZES — operand ranges for Quick drill
+   For ÷ the pair is (quotient, divisor), so "2 · 1" gives 376 ÷ 8.
+   ========================================================== */
+const SHAPES = {
+  facts:   { label: 'Facts to 12',        r: [[2, 12], [2, 12]] },
+  teens:   { label: 'Teens to 19',        r: [[11, 19], [2, 19]] },
+  squares: { label: 'Squares to 99',      r: [[11, 99], [11, 99]], sq: true },
+  custom:  { label: 'Custom' },
+  d21:     { label: '2-digit by 1-digit', r: [[10, 99], [2, 9]], fixDiv: true },
+  d22:     { label: '2-digit by 2-digit', r: [[10, 99], [10, 99]] },
+  d31:     { label: '3-digit by 1-digit', r: [[100, 999], [2, 9]], fixDiv: true },
+  d33:     { label: '3-digit by 3-digit', r: [[100, 999], [100, 999]] }
+};
+const shapeOf = cfg => SHAPES[cfg.shape] || SHAPES.facts;
+const shapeLabel = cfg => cfg.shape === 'custom' ? cfg.min + ' to ' + cfg.max : shapeOf(cfg).label;
+function shapeRanges(cfg) {
+  const sh = shapeOf(cfg);
+  if (sh.r) return sh.r;
   const lo = Math.min(cfg.min, cfg.max), hi = Math.max(cfg.min, cfg.max);
-  const ops = cfg.ops.length ? cfg.ops : ['+'];
-  function one() {
-    const op = ops[rnd(0, ops.length - 1)];
-    let a = rnd(lo, hi), b = rnd(lo, hi), answer;
-    if (op === '+') { answer = a + b; }
-    else if (op === '−') { if (!cfg.allowNeg && a < b) { const s = a; a = b; b = s; } answer = a - b; }
-    else if (op === '×') { answer = a * b; }
-    else { b = Math.max(1, b); const q = rnd(Math.max(1, lo), hi); a = b * q; answer = q; }
-    if (cfg.noTrivial) {
-      if ((op === '×' && (a <= 1 || b <= 1)) || ((op === '+' || op === '−') && (a === 0 || b === 0)) || (op === '÷' && b === 1)) return null;
-    }
-    const glyph = op === '−' ? '−' : op;
-    let A = a, B = b;
-    if ((op === '+' || op === '×') && A > B) { const s = A; A = B; B = s; }
-    return { prompt: a + ' ' + glyph + ' ' + b + ' =', answer, key: A + glyph + B };
+  return [[lo, hi], [lo, hi]];
+}
+const inR = (n, r) => n >= r[0] && n <= r[1];
+const pairOf = f => f.op === '÷' ? [f.a / f.b, f.b] : [f.a, f.b];
+const trivial = f => (f.op === '×' && (Math.abs(f.a) <= 1 || Math.abs(f.b) <= 1)) ||
+  ((f.op === '+' || f.op === '−') && (f.a === 0 || f.b === 0)) || (f.op === '÷' && Math.abs(f.b) === 1);
+
+const FACT_RE = /^(-?\d+)([+−×÷])(-?\d+)$/;   /* the sign is '-', the operator '−' */
+function factFromKey(k) {
+  const m = FACT_RE.exec(k); if (!m) return null;
+  const op = m[2], a = +m[1], b = +m[3];
+  return { op, a, b, answer: op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : a / b };
+}
+/* Does a stored fact belong to the size and operations picked now? */
+function fits(f, cfg) {
+  const sh = shapeOf(cfg);
+  if (sh.sq) return f.op === '×' && f.a === f.b && inR(f.a, sh.r[0]);
+  if (cfg.ops.indexOf(f.op) < 0 || !Number.isFinite(f.answer)) return false;
+  if ((f.a < 0 || f.b < 0) && !cfg.signed) return false;
+  if (f.op === '−' && !cfg.allowNeg && !cfg.signed && f.a < f.b) return false;
+  if (cfg.noTrivial && trivial(f)) return false;
+  const p = pairOf(f).map(Math.abs), r = shapeRanges(cfg);
+  if (!Number.isInteger(p[0])) return false;
+  return (inR(p[0], r[0]) && inR(p[1], r[1])) || (inR(p[1], r[0]) && inR(p[0], r[1]));
+}
+/* Median time a fact should take once known (PLAN.md §4.5 targets). */
+function baseMs(f) {
+  const p = pairOf(f).map(Math.abs), x = Math.max(p[0], p[1]), y = Math.min(p[0], p[1]);
+  const add = f.op === '+' || f.op === '−';
+  if (f.op === '×' && f.a === f.b && x > 12) return x <= 30 ? 3000 : 5000;
+  if (x <= 12) return 2500;
+  if (x <= 19) return add ? 3000 : 4000;
+  const dx = String(x).length, dy = String(y).length;
+  if (add) return 1500 * (dx + dy - 1);
+  return dy === 1 ? 3000 + 2000 * (dx - 1) : (dx + dy <= 4 ? 20000 : dx + dy === 5 ? 35000 : 60000);
+}
+/* a negative number costs a moment more: settle the sign, then the size */
+const targetMs = f => baseMs(f) + (f.a < 0 || f.b < 0 ? 1000 : 0);
+/* Negatives: flip one or both numbers; a quarter stay positive, so the sign always needs a thought */
+function signFact(f) {
+  const p = rnd(0, 3); if (p === 3) return f;
+  const a = p === 1 ? f.a : -f.a, b = p === 0 ? f.b : -f.b;
+  return { op: f.op, a, b, answer: f.op === '+' ? a + b : f.op === '−' ? a - b : f.op === '×' ? a * b : a / b };
+}
+function makeFact(op, x, y, cfg) {
+  if (op === '÷') {
+    if (!shapeOf(cfg).fixDiv && rng() < .5) { const s = x; x = y; y = s; }
+    const b = Math.max(1, y);
+    return { op, a: x * b, b, answer: x };
   }
+  if (rng() < .5) { const s = x; x = y; y = s; }
+  let a = x, b = y;
+  if (op === '−' && !cfg.allowNeg && a < b) { a = y; b = x; }
+  return { op, a, b, answer: op === '+' ? a + b : op === '−' ? a - b : a * b };
+}
+const sgn = n => n < 0 ? '−' + (-n) : String(n);
+function factQ(f, cfg) {
+  let A = f.a, B = f.b;
+  if ((f.op === '+' || f.op === '×') && A > B) { const s = A; A = B; B = s; }
+  const sq = shapeOf(cfg).sq && f.a === f.b;
   return {
+    prompt: sq ? f.a + '² =' : sgn(f.a) + ' ' + f.op + ' ' + (f.b < 0 ? '(' + sgn(f.b) + ')' : f.b) + ' =',
+    answer: f.answer, key: A + f.op + B, signed: !!cfg.signed && !shapeOf(cfg).sq,
+    data: { op: f.op, a: f.a, b: f.b }, shape: cfg.shape, srs: true, target: targetMs(f)
+  };
+}
+
+/* Due facts open the session and then fill about half of it;
+   new questions skip facts that are already scheduled for a later day. */
+function generator(cfg) {
+  const seen = new Set(), sh = shapeOf(cfg), r = shapeRanges(cfg), t0 = today();
+  const ops = sh.sq ? ['×'] : (cfg.ops.length ? cfg.ops : ['+']);
+  const due = [], retired = [];
+  Object.keys(S.srs || {}).forEach(k => {
+    const e = S.srs[k], f = factFromKey(k);
+    if (!f || !fits(f, cfg)) return;
+    if (e[0] >= RETIRED) retired.push(k); else if (e[1] <= t0) due.push(k);
+  });
+  due.sort((a, b) => (S.srs[a][1] < S.srs[b][1] ? -1 : S.srs[a][1] > S.srs[b][1] ? 1 : S.srs[a][0] - S.srs[b][0]));
+  const fromKey = k => {
+    const f = factFromKey(k);
+    if ((f.op === '+' || f.op === '×') && rng() < .5) { const s = f.a; f.a = f.b; f.b = s; }
+    seen.add(k); return factQ(f, cfg);
+  };
+  function fresh() {
+    const op = ops[rnd(0, ops.length - 1)], x = rnd(r[0][0], r[0][1]);
+    let f = sh.sq ? { op: '×', a: x, b: x, answer: x * x } : makeFact(op, x, rnd(r[1][0], r[1][1]), cfg);
+    if (cfg.signed && !sh.sq) f = signFact(f);
+    return cfg.noTrivial && trivial(f) ? null : factQ(f, cfg);
+  }
+  let n = 0;
+  return {
+    dueCount: due.length,
     next() {
-      for (let i = 0; i < 60; i++) {
-        const q = one();
-        if (q && !seen.has(q.key)) { seen.add(q.key); return q; }
+      n++;
+      while (due.length && seen.has(due[0])) due.shift();
+      if (due.length && (n === 1 || rng() < .5)) return fromKey(due.shift());
+      if (retired.length && rng() < .05) {
+        const k = retired.splice(rnd(0, retired.length - 1), 1)[0];
+        if (!seen.has(k)) return fromKey(k);
       }
+      let later = null;
+      for (let i = 0; i < 60; i++) {
+        const q = fresh();
+        if (!q || seen.has(q.key)) continue;
+        const e = S.srs && S.srs[q.key];
+        if (e && i < 40 && (e[0] >= RETIRED || e[1] > t0)) { later = later || q; continue; }
+        seen.add(q.key); return q;
+      }
+      if (later) { seen.add(later.key); return later; }
       seen.clear();
-      let q = null, guard = 0;
-      while (!q && guard++ < 60) q = one();
-      return q || { prompt: '1 + 1 =', answer: 2, key: '1+1' };
+      for (let i = 0; i < 60; i++) { const q = fresh(); if (q) { seen.add(q.key); return q; } }
+      return { prompt: '1 + 1 =', answer: 2, key: '1+1' };
     }
   };
 }
@@ -736,20 +970,21 @@ function fromSet(set) {
 /* ==========================================================
    SESSION — timing, scoring, and the Leitner re-queue
    ========================================================== */
-const LEITNER = [2, 5, 11];
+const LEITNER = [2, 5];   /* a miss comes back 2, then 5 questions later */
 
 function Session(source, cfg, limit) {
   return {
     source, cfg, limit,
-    asked: 0, correct: 0, times: [], misses: [], done: false,
-    pending: [], current: null, shownAt: 0,
+    asked: 0, correct: 0, times: [], okTimes: [], misses: [], done: false,
+    pending: [], boxes: {}, current: null, shownAt: 0,
     take() {
       const due = this.pending.findIndex(p => p.at <= this.asked);
       if (due > -1) return this.pending.splice(due, 1)[0].q;
       return this.source.next();
     },
     next() {
-      if (this.limit && this.asked >= this.limit && !this.pending.length) { this.done = true; return null; }
+      /* hard stop: misses still waiting are already in the review queue */
+      if (this.limit && this.asked >= this.limit) { this.done = true; return null; }
       const q = this.take();
       if (!q) {
         if (this.pending.length) { const p = this.pending.shift(); this.current = p.q; this.shownAt = performance.now(); return p.q; }
@@ -762,18 +997,18 @@ function Session(source, cfg, limit) {
       const q = this.current, ms = performance.now() - this.shownAt;
       const ok = Math.abs(value - q.answer) < 1e-9;
       this.asked++; this.times.push(ms);
-      if (ok) this.correct++; else this.misses.push({ prompt: q.prompt, answer: q.answer, gave: value, ms });
+      if (ok) { this.correct++; this.okTimes.push(ms); }
+      else this.misses.push({ prompt: q.prompt, answer: q.answer, gave: value, ms });
       /* fact record */
       const f = S.facts[q.key] || (S.facts[q.key] = { n: 0, ok: 0, ms: 0 });
       f.n++; if (ok) { f.ok++; f.ms = f.ms ? (f.ms * 0.7 + ms * 0.3) : ms; }
-      /* re-queue misses */
-      if (!ok && this.cfg.repeat) {
-        q.box = 0;
-        this.pending.push({ q, at: this.asked + LEITNER[0] });
-      } else if (ok) {
-        const idx = this.pending.findIndex(p => p.q.key === q.key);
-        if (idx > -1) this.pending.splice(idx, 1);
-      }
+      if (q.srs) srsUpdate(q.key, ok, ms, q.target);
+      /* re-queue inside the session */
+      const was = this.boxes[q.key];
+      this.pending = this.pending.filter(p => p.q.key !== q.key);
+      if (!ok && this.cfg.repeat) { this.boxes[q.key] = 0; this.pending.push({ q, at: this.asked + LEITNER[0] }); }
+      else if (ok && was === 0) { this.boxes[q.key] = 1; this.pending.push({ q, at: this.asked + LEITNER[1] }); }
+      else delete this.boxes[q.key];
       return { ok, ms, answer: q.answer };
     }
   };
@@ -784,15 +1019,14 @@ const median = a => {
   const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
-const today = () => new Date().toISOString().slice(0, 10);
-
 function bumpStreak() {
   const t = today();
   if (S.streak.last === t) return;
-  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  S.streak.n = S.streak.last === y ? S.streak.n + 1 : 1;
+  S.streak.n = S.streak.last === addDays(t, -1) ? S.streak.n + 1 : 1;
   S.streak.last = t;
 }
+/* the streak as it stands today: a gap of more than a day has broken it */
+const liveStreak = () => S.streak.last === today() || S.streak.last === addDays(today(), -1) ? S.streak.n || 0 : 0;
 /* ==========================================================
    UI LAYER
    ========================================================== */
@@ -826,30 +1060,76 @@ function blip(freq, ms, gain) {
     o.start(); o.stop(ac.currentTime + ms / 1000);
   } catch (e) { /* audio is a nicety, never a blocker */ }
 }
-const buzz = p => { if (S.cfg.haptics && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} };
+/* Haptics. Android: navigator.vibrate. iPhone (iOS 18+): no vibrate API, but a
+   native <input switch> plays the system tick when it flips, so a hidden one is
+   flipped through its label. Earlier iOS versions simply stay silent. */
+let hapticN = 0;
+const hapt = document.getElementById('hapt');
+function tickOnce() { hapticN++; try { hapt.click(); } catch (e) {} }
+function haptic(kind) {
+  if (!S.cfg.haptics) return;
+  if (navigator.vibrate) {
+    hapticN++;
+    try { navigator.vibrate(kind === 'bad' ? [16, 40, 16] : kind === 'good' ? 12 : 6); } catch (e) {}
+    return;
+  }
+  tickOnce();
+  if (kind === 'good') setTimeout(tickOnce, 90);
+  if (kind === 'bad') { setTimeout(tickOnce, 110); setTimeout(tickOnce, 220); }
+}
+/* iOS only applies :active styles when a touch listener exists */
+document.addEventListener('touchstart', () => {}, { passive: true });
 
 /* ==========================================================
    HOME
    ========================================================== */
+const MODE_TXT = { count: c => c.count + ' questions', sprint: c => c.seconds + ' seconds', endless: () => 'Endless' };
+const SHAPE_HINT = {
+  facts: 'Times tables and their partners up to 12.',
+  teens: 'One number from 11 to 19, such as 17 × 14 or 238 ÷ 17.',
+  squares: 'Squares from 11² to 99². Uses × only.',
+  d21: 'A 2-digit and a 1-digit number, such as 47 × 8 or 376 ÷ 8.',
+  d22: 'Two 2-digit numbers, such as 38 × 47 or 83 − 47.',
+  d31: 'A 3-digit and a 1-digit number, such as 348 × 6.',
+  d33: 'Two 3-digit numbers, such as 732 − 468.'
+};
 function paintHome() {
-  $('#streakN').textContent = S.streak.n || 0;
-  $('#streakT').textContent = (S.streak.n === 1 ? 'day streak' : 'day streak') +
-    (S.streak.last === today() ? ' · practised today' : '');
-  $$('#opChips .chip').forEach(c => c.setAttribute('aria-pressed', S.cfg.ops.indexOf(c.dataset.op) > -1));
-  $$('#modeChips .chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.mode === S.cfg.mode));
-  $('#rangeEcho').textContent = S.cfg.min; $('#rangeEcho2').textContent = S.cfg.max;
+  const c = S.cfg, sh = SHAPES[c.shape] ? c.shape : 'facts';
+  $('#streakN').textContent = liveStreak();
+  $('#streakT').textContent = 'day streak' + (S.streak.last === today() ? ' · practised today' : '');
+  $$('#opChips .chip[data-op]').forEach(el => {
+    el.setAttribute('aria-pressed', c.ops.indexOf(el.dataset.op) > -1);
+    el.disabled = sh === 'squares';
+  });
+  $('#signChip').setAttribute('aria-pressed', !!c.signed);
+  $('#signChip').disabled = sh === 'squares';
+  $$('#shapeChips .tile').forEach(el => el.setAttribute('aria-pressed', el.dataset.shape === sh));
+  $$('#modeChips .chip').forEach(el => el.setAttribute('aria-pressed', el.dataset.mode === c.mode));
+  $('#customBig').textContent = c.min + '–' + c.max;
+  $('#shapeHint').textContent = (sh === 'custom' ? 'Numbers from ' + c.min + ' to ' + c.max + '. Change the range in Settings.' : SHAPE_HINT[sh]) +
+    (c.signed && sh !== 'squares' ? ' Negatives on: tap ± first, then the digits.' : '');
   $('#setsSub').textContent = S.sets.length
     ? S.sets.length + (S.sets.length === 1 ? ' set' : ' sets')
     : 'No sets yet';
-  $('#startBtn').disabled = !S.cfg.ops.length;
+  const can = sh === 'squares' || c.ops.length > 0;
+  $('#startBtn').disabled = !can;
+  const due = can ? generator(c).dueCount : 0;
+  $('#startInfo').textContent = !can ? 'Pick at least one operation.'
+    : shapeLabel(c) + (c.signed && sh !== 'squares' ? ' · with negatives' : '') + ' · ' + (MODE_TXT[c.mode] || MODE_TXT.count)(c) + (due ? ' · ' + due + ' due for review' : '');
+  const allDue = Object.keys(S.srs || {}).filter(k => S.srs[k][0] < RETIRED && S.srs[k][1] <= today()).length;
+  $('#statsSub').textContent = allDue ? allDue + ' facts due for review' : '';
 }
-$$('#opChips .chip').forEach(c => c.addEventListener('click', () => {
-  const op = c.dataset.op, i = S.cfg.ops.indexOf(op);
+$('#signChip').addEventListener('click', () => { S.cfg.signed = !S.cfg.signed; save(); paintHome(); });
+$$('#opChips .chip[data-op]').forEach(el => el.addEventListener('click', () => {
+  const op = el.dataset.op, i = S.cfg.ops.indexOf(op);
   if (i > -1) S.cfg.ops.splice(i, 1); else S.cfg.ops.push(op);
   save(); paintHome();
 }));
-$$('#modeChips .chip').forEach(c => c.addEventListener('click', () => {
-  S.cfg.mode = c.dataset.mode; save(); paintHome();
+$$('#shapeChips .tile').forEach(el => el.addEventListener('click', () => {
+  S.cfg.shape = el.dataset.shape; save(); paintHome();
+}));
+$$('#modeChips .chip').forEach(el => el.addEventListener('click', () => {
+  S.cfg.mode = el.dataset.mode; save(); paintHome();
 }));
 $('#toSettings').addEventListener('click', () => show('settings'));
 $('#toSets').addEventListener('click', () => show('sets'));
@@ -859,24 +1139,30 @@ $('#startBtn').addEventListener('click', () => startSession(null));
 /* ==========================================================
    PRACTICE
    ========================================================== */
-let ses = null, typed = '', neg = false, locked = false, tick = null, endsAt = 0, needsDot = false, lastSet = null;
+let ses = null, typed = '', neg = false, locked = false, tick = null, endsAt = 0, lastSet = null, qid = 0;
 
 function startSession(set) {
   lastSet = set;
   const cfg = S.cfg;
-  let source, limit;
+  let source, limit, negOn, dotOn, label;
   if (set) {
     source = fromSet(set); limit = null;
-    needsDot = set.items.some(q => !Number.isInteger(q.answer));
+    negOn = set.items.some(q => q.answer < 0);
+    dotOn = set.items.some(q => !Number.isInteger(q.answer));
+    label = set.name;
   } else {
     source = generator(cfg);
     limit = cfg.mode === 'count' ? cfg.count : null;
-    needsDot = false;
+    negOn = !shapeOf(cfg).sq && (cfg.signed || (cfg.allowNeg && cfg.ops.indexOf('−') > -1));
+    dotOn = false;
+    label = shapeLabel(cfg) + (cfg.signed && !shapeOf(cfg).sq ? ' · ±' : '');
   }
   ses = Session(source, cfg, limit);
-  $('#negKey').innerHTML = needsDot ? '.' : '&minus;';
-  $('#pad').style.direction = 'ltr';
-  $('#negKey').style.order = cfg.lefty ? '-1' : '0';
+  /* keys a question cannot use are blank and disabled */
+  $('#negKey').disabled = !negOn;
+  $('#dotKey').disabled = !dotOn;
+  $('#pad').classList.toggle('lefty', !!cfg.lefty);
+  $('#segLbl').textContent = label;
   show('practice');
   if (cfg.mode === 'sprint' && !set) {
     endsAt = Date.now() + cfg.seconds * 1000;
@@ -893,24 +1179,40 @@ function paintTimer() {
     if (left <= 0) finish();
   } else if (ses && ses.limit) {
     $('#timer').textContent = ses.asked + '/' + ses.limit;
-    $('#progBar').style.width = (ses.asked / ses.limit * 100) + '%';
+    $('#progBar').style.width = Math.min(100, ses.asked / ses.limit * 100) + '%';
   } else if (ses) {
     $('#timer').textContent = String(ses.asked);
     $('#progBar').style.width = '0%';
   }
 }
 
+/* Shrink a one-line figure until it fits the width (never below 22 px). */
+function fit(el) {
+  el.style.fontSize = '';
+  const room = $('#qwrap').clientWidth - 8, w = el.scrollWidth;
+  if (w > room && room > 0) {
+    el.style.fontSize = Math.max(22, Math.floor(parseFloat(getComputedStyle(el).fontSize) * room / w)) + 'px';
+  }
+}
+
+/* Input stays locked from a submit until the next prompt is on screen,
+   so fast typing can never land on a question you have not seen. */
 function advance(first) {
-  const q = ses.next();
+  const s = ses; if (!s) return;
+  const q = s.next();
   if (!q) return finish();
-  typed = ''; neg = false; locked = false;
+  locked = true;
   const w = $('#qwrap');
   const put = () => {
-    $('#qText').textContent = q.prompt;
+    if (ses !== s) return;
+    typed = ''; neg = false;
+    $('#qText').textContent = q.prompt; fit($('#qText'));
     $('#verdict').textContent = ''; $('#verdict').className = 'verdict';
     paintAnswer();
     w.classList.remove('out'); w.classList.add('in');
     setTimeout(() => w.classList.remove('in'), 200);
+    s.shownAt = performance.now(); qid++;
+    locked = false;
   };
   if (first) put(); else { w.classList.add('out'); setTimeout(put, 165); }
   paintTimer();
@@ -918,57 +1220,93 @@ function advance(first) {
 
 function paintAnswer() {
   const el = $('#aText');
-  const a = ses.current ? ses.current.answer : 0;
-  const showPh = S.cfg.autoSubmit && Number.isInteger(a) && a >= 0;
-  const len = showPh ? String(a).length : 0;
+  const q = ses && ses.current, a = q ? q.answer : 0;
+  const showPh = S.cfg.showLen && Number.isInteger(a) && (a >= 0 || !!(q && q.signed));
+  const len = showPh ? String(Math.abs(a)).length : 0;
   let html = '';
   if (neg) html += '<span>&minus;</span>';
   html += typed.split('').map(ch => '<span>' + (ch === '.' ? '.' : ch) + '</span>').join('');
   if (showPh) for (let i = typed.length; i < len; i++) html += '<span class="ph">0</span>';
   html += '<span class="caret"></span>';
   el.innerHTML = html;
+  fit(el);
 }
+
+const keyOn = k => { const b = document.querySelector('#pad [data-k="' + k + '"]'); return !!b && !b.disabled; };
 
 function press(k) {
   if (locked || !ses || !ses.current) return;
+  if (k === 'go') return submit();
   if (k === 'del') { if (typed) typed = typed.slice(0, -1); else neg = false; }
-  else if (k === 'neg') { if (needsDot) { if (typed.indexOf('.') < 0 && typed) typed += '.'; } else neg = !neg; }
-  else if (k === 'dot') { if (typed.indexOf('.') < 0 && typed) typed += '.'; }
-  else if (k === 'go') return submit();
-  else if (/^[0-9]$/.test(k)) { if (typed.length < 9) typed += k; }
+  else if (k === 'neg') { if (!keyOn('neg')) return; neg = !neg; }
+  else if (k === 'dot') { if (!keyOn('dot') || typed.indexOf('.') > -1) return; typed = (typed || '0') + '.'; }
+  else if (/^[0-9]$/.test(k)) { if (typed.length >= 12) return; typed += k; }
+  else return;
+  haptic('key');
   paintAnswer();
   if (S.cfg.autoSubmit && typed.length) {
-    const a = ses.current.answer;
-    if (Number.isInteger(a) && a >= 0 && !neg && typed.length === String(a).length) setTimeout(submit, 30);
+    const q = ses.current, a = q.answer;
+    /* with negatives on, the digit count alone submits, so the sign must be set first
+       and the auto-submit never gives it away */
+    const full = Number.isInteger(a) && (q.signed ? typed.length === String(Math.abs(a)).length
+      : a >= 0 && !neg && typed.length === String(a).length);
+    if (full) {
+      locked = true;                       /* nothing typed in the next 30 ms can count */
+      setTimeout(() => submit(true), 30);
+    }
   }
 }
 
-function submit() {
-  if (locked || !typed.length) return;
+function submit(auto) {
+  if ((locked && !auto) || !ses || !ses.current || !typed.length || typed === '.') return;
   locked = true;
-  const value = parseFloat((neg ? '-' : '') + typed);
-  const r = ses.judge(value);
+  const s = ses, value = parseFloat((neg ? '-' : '') + typed);
+  const r = s.judge(value);
   const v = $('#verdict'), w = $('#qwrap');
+  const later = ms => setTimeout(() => { if (ses === s) advance(false); }, ms);
   if (r.ok) {
     v.textContent = 'Correct'; v.className = 'verdict g';
-    blip(920, 60, .05); buzz(12);
-    setTimeout(() => advance(false), 190);
+    blip(920, 60, .05); haptic('good');
+    later(190);
   } else {
     v.textContent = fmt(r.answer); v.className = 'verdict b';
-    blip(170, 150, .06); buzz([16, 40, 16]);
+    blip(170, 150, .06); haptic('bad');
     w.classList.add('shake'); setTimeout(() => w.classList.remove('shake'), 320);
-    setTimeout(() => advance(false), 1250);
+    later(1250);
   }
   paintTimer();
 }
 
-$('#pad').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (b) press(b.dataset.k);
+/* Keys act on touch-down, like the iOS keyboard: no wait for the finger to
+   lift, and two thumbs can overlap. The click that follows a touch is
+   swallowed; a click with no touch before it (keyboard, VoiceOver) still works. */
+const pad = $('#pad'), downs = new Map();
+pad.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button');
+  if (!b || b.disabled || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  e.preventDefault();
+  const now = performance.now(), d = downs.get(b);
+  downs.set(b, { n: (d && now - d.t < 1000 ? d.n : 0) + 1, t: now });
+  b.classList.add('down');
+  press(b.dataset.k);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => pad.addEventListener(t, e => {
+  const b = e.target.closest && e.target.closest('button'); if (!b) return;
+  b.classList.remove('down');
+  const d = downs.get(b); if (d) d.t = performance.now();   /* a long press still swallows its click */
+}));
+pad.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = downs.get(b);
+  if (d && d.n > 0 && performance.now() - d.t < 1000) { d.n--; return; }
+  press(b.dataset.k);
 });
 $('#quitBtn').addEventListener('click', () => finish(true));
 
 document.addEventListener('keydown', e => {
   if (screen !== 'practice') return;
+  /* a keypad key focused by Tab: let Enter and Space press that key */
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('#pad button')) return;
   if (/^[0-9]$/.test(e.key)) { press(e.key); e.preventDefault(); }
   else if (e.key === 'Backspace') { press('del'); e.preventDefault(); }
   else if (e.key === 'Enter' || e.key === '=') { press('go'); e.preventDefault(); }
@@ -992,13 +1330,14 @@ function finish(early) {
     : acc === 1 ? 'Every one correct.' : acc >= .8 ? 'Solid run.' : 'Plenty to work on.';
   $('#mAcc').textContent = Math.round(acc * 100) + '%';
   $('#mSpeed').textContent = (med / 1000).toFixed(1) + 's';
-  $('#mBest').textContent = (Math.min.apply(null, s.times) / 1000).toFixed(1) + 's';
+  /* fastest counts correct answers only */
+  $('#mBest').textContent = s.okTimes.length ? (Math.min.apply(null, s.okTimes) / 1000).toFixed(1) + 's' : '—';
   $('#mCount').textContent = s.asked;
 
   const seen = {}, miss = s.misses.filter(m => (seen[m.prompt] ? false : (seen[m.prompt] = 1)));
   $('#missWrap').style.display = miss.length ? '' : 'none';
   $('#missList').innerHTML = miss.slice(0, 12).map(m =>
-    '<div class="review"><span>' + m.prompt + ' <b>' + fmt(m.answer) + '</b></span>' +
+    '<div class="review"><span>' + esc(m.prompt) + ' <b>' + fmt(m.answer) + '</b></span>' +
     '<span class="was">you put ' + fmt(m.gave) + '</span></div>').join('');
   show('summary');
 }
@@ -1101,6 +1440,13 @@ function paintStats() {
   [0, .34, .67, 1].forEach((v, i) => { $('#lg' + (i + 1)).style.background = heatColor(v); });
   $('#heatTip').textContent = 'Tap a square';
 
+  const t = today(); let due = 0, learn = 0, done = 0;
+  Object.keys(S.srs || {}).forEach(k => {
+    const e = S.srs[k];
+    if (e[0] >= RETIRED) done++; else { learn++; if (e[1] <= t) due++; }
+  });
+  $('#rvDue').textContent = due; $('#rvLearn').textContent = learn; $('#rvDone').textContent = done;
+
   const last = S.history.slice(-20);
   $('#spark').innerHTML = last.length
     ? last.map(h => '<i style="height:' + Math.max(4, (h.ok / h.n) * 100) + '%"></i>').join('')
@@ -1111,7 +1457,7 @@ $('#heat').addEventListener('click', e => {
   $('#heatTip').textContent = td.dataset.k + ' · ' + td.dataset.a + '% of ' + td.dataset.n;
 });
 $('#exportBtn').addEventListener('click', () => {
-  const blob = JSON.stringify({ v: 1, cfg: S.cfg, facts: S.facts, history: S.history, sets: S.sets, streak: S.streak });
+  const blob = JSON.stringify({ v: 1, cfg: S.cfg, facts: S.facts, history: S.history, sets: S.sets, streak: S.streak, srs: S.srs });
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(blob).then(
       () => alert('Backup copied. Paste it somewhere safe.'),
@@ -1124,16 +1470,17 @@ $('#importBtn').addEventListener('click', () => {
   try {
     const d = JSON.parse(txt);
     if (!d || !d.v) throw 0;
-    S.cfg = Object.assign({}, DEFAULTS, d.cfg || {});
+    S.cfg = loadCfg(d.cfg);
     S.facts = d.facts || {}; S.history = d.history || []; S.sets = d.sets || [];
     S.streak = d.streak || { last: null, n: 0 };
+    S.srs = d.srs || seedSrs(S.facts);
     save(); paintStats();
     alert('Backup restored.');
   } catch (e) { alert('That does not look like a Drill backup.'); }
 });
 $('#wipeBtn').addEventListener('click', () => {
   if (!confirm('Reset every session, statistic and set? This cannot be undone.')) return;
-  S.facts = {}; S.history = []; S.sets = []; S.streak = { last: null, n: 0 };
+  S.facts = {}; S.history = []; S.sets = []; S.streak = { last: null, n: 0 }; S.srs = {};
   save(); paintStats();
 });
 
@@ -1156,7 +1503,17 @@ $$('[data-t]').forEach(r => r.addEventListener('click', () => {
 }));
 
 /* ---------- go ---------- */
+/* first run of this version: build the review queue from version 1 facts (adds a key, changes none) */
+if (!S.srs) { S.srs = seedSrs(S.facts); Store.set('drill.srs', S.srs); }
 paintHome();
+
+/* test hooks (tests/smoke.py) */
+window.__drill = {
+  version: VERSION, today, addDays, INTERVALS, srsUpdate,
+  state: () => S, current: () => (ses ? ses.current : null), qid: () => qid,
+  typed: () => typed, neg: () => neg, ready: () => !!(ses && ses.current && !locked),
+  hapticCount: () => hapticN
+};
 if (!Store.live) {
   const p = document.createElement('p');
   p.className = 'hint';
