@@ -1,6 +1,6 @@
 /* Drill — offline shell.
    Bump CACHE after you change index.html, or phones keep the old copy. */
-const CACHE = 'drill-v3';
+const CACHE = 'drill-v4';
 const SHELL = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './apple-touch-icon.png'

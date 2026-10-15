@@ -234,7 +234,8 @@ def t_session_limit(mk):
         wait_next(page, timeout=8000)
         info = page.evaluate("""() => {
             const pb = document.querySelector('#progBar'), tm = document.querySelector('#timer');
-            return {w: pb ? pb.style.width : null, t: tm ? tm.textContent : null,
+            const m = pb ? /scaleX\\(([\\d.]+)\\)/.exec(pb.style.transform) : null;
+            return {w: m ? (parseFloat(m[1]) * 100) + '%' : null, t: tm ? tm.textContent : null,
                     sum: !!document.querySelector('#summary.on')};
         }""")
         if info['w'] is not None and info['w'] != '':
@@ -494,7 +495,7 @@ def t_sw(mk):
     r = page.context.request.get(BASE + 'sw.js')
     assert r.ok, f'sw.js status {r.status}'
     t = r.text()
-    assert "CACHE = 'drill-v3'" in t, "sw.js lacks CACHE = 'drill-v3'"
+    assert "CACHE = 'drill-v4'" in t, "sw.js lacks CACHE = 'drill-v4'"
     assert "cache: 'reload'" in t, "sw.js lacks cache: 'reload'"
 
 
@@ -588,9 +589,211 @@ def t_screenshot(mk):
         frames.append(fr)
     frames[1].evaluate("document.querySelector('#startBtn').click()")
     page.wait_for_timeout(400)
+    # show the wrong-answer feedback: tap a first digit that cannot lead to the answer
+    frames[1].evaluate("""() => {
+        const q = window.__drill.current(), want = (q.answer < 0 ? '-' : '') + Math.abs(q.answer);
+        const k = ['1', '2'].find(d => d !== want[0]);
+        document.querySelector('#pad button[data-k="' + k + '"]')
+            .dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, pointerType: 'touch', isPrimary: true}));
+    }""")
+    page.wait_for_timeout(250)
     out = os.path.join(HERE, 'shots')
     os.makedirs(out, exist_ok=True)
     page.screenshot(path=os.path.join(out, 'iphone-xs.png'))
+
+
+# ---------------------------------------------------------------- judge-as-you-type checks
+def find_q(page, pred, go=False, limit=40, what='suitable'):
+    """Answer questions correctly until pred(current) holds; returns that question."""
+    for _ in range(limit):
+        q = cur(page)
+        if pred(q):
+            return q
+        answer_and_next(page, go=go)
+    raise AssertionError(f'no {what} question within {limit}')
+
+
+def other_digit(d):
+    return '9' if d != '9' else '8'
+
+
+def arm_seen(page):
+    """Record every class #verdict / #aText take (correct verdicts may be very short-lived)."""
+    page.evaluate("""() => {
+        window.__seen = [];
+        const rec = () => {
+            const v = document.querySelector('#verdict'), a = document.querySelector('#aText');
+            window.__seen.push({v: v ? [...v.classList] : [], a: a ? [...a.classList] : [], t: performance.now()});
+        };
+        if (window.__seenObs) window.__seenObs.disconnect();
+        window.__seenObs = new MutationObserver(rec);
+        window.__seenObs.observe(document.documentElement,
+            {subtree: true, childList: true, attributes: true, attributeFilter: ['class']});
+        rec();
+    }""")
+
+
+def wait_seen(page, el, cls, timeout=1500):
+    page.wait_for_function(
+        "([el, cls]) => (window.__seen || []).some(s => s[el].includes(cls))", arg=[el, cls], timeout=timeout)
+
+
+def ever_seen(page, el, cls):
+    return page.evaluate("([el, cls]) => (window.__seen || []).some(s => s[el].includes(cls))", [el, cls])
+
+
+def go_text(page):
+    return page.inner_text('#pad button[data-k="go"]').strip()
+
+
+def t_fail_fast_positive(mk):
+    page = mk()
+    boot(page, {'autoSubmit': True, 'ops': ['+'], 'shape': 'facts', 'mode': 'endless', 'sound': False},
+         query='?seed=31')
+    start(page)
+    q = find_q(page, lambda q: num(q['answer']) >= 10, what='answer >= 10')
+    mark_qid(page)
+    tap(page, other_digit(str(num(q['answer']))[0]))
+    page.wait_for_selector('#verdict.b', timeout=1000)
+    assert page.locator('#aText.bad').count() == 1, '#aText lacks class bad'
+
+
+def t_fail_fast_negative(mk):
+    page = mk()
+    boot(page, {'autoSubmit': True, 'signed': True, 'ops': [MINUS], 'shape': 'facts', 'mode': 'endless',
+                'sound': False}, query='?seed=32')
+    start(page)
+    q = find_q(page, lambda q: num(q['answer']) <= -10, what='answer <= -10')
+    s = str(abs(num(q['answer'])))
+    mark_qid(page)
+    arm_seen(page)
+    tap(page, 'neg')
+    tap(page, s[0])
+    page.wait_for_timeout(400)
+    assert not ever_seen(page, 'v', 'b') and not ever_seen(page, 'v', 'g'), f'judged early on -{s[0]} (answer {q["answer"]})'
+    assert page.evaluate('window.__drill.ready()'), 'not ready after -' + s[0]
+    t = page.evaluate('window.__drill.typed()')
+    assert t == s[0], f'typed() = {t!r}, want {s[0]!r}'
+    tap(page, other_digit(s[1]))
+    page.wait_for_selector('#verdict.b', timeout=1000)
+    wait_next(page)
+    q = find_q(page, lambda q: num(q['answer']) < 0, what='second negative-answer')
+    mark_qid(page)
+    arm_seen(page)
+    type_answer(page, num(q['answer']), go=False)
+    wait_seen(page, 'v', 'g')
+
+
+def t_sign_first(mk):
+    page = mk()
+    boot(page, {'autoSubmit': True, 'signed': True, 'ops': [MINUS], 'shape': 'facts', 'mode': 'endless',
+                'sound': False}, query='?seed=33')
+    start(page)
+    q = find_q(page, lambda q: num(q['answer']) < 0, what='negative-answer')
+    mark_qid(page)
+    tap(page, str(abs(num(q['answer'])))[0])
+    page.wait_for_selector('#verdict.b', timeout=1000)
+    wait_next(page)
+    q = find_q(page, lambda q: num(q['answer']) > 0, what='positive-answer')
+    mark_qid(page)
+    tap(page, 'neg')
+    page.wait_for_selector('#verdict.b', timeout=1000)
+    wait_next(page)
+    page.tap('#quitBtn')
+    page.wait_for_selector('#summary.on')
+    was = page.evaluate("[...document.querySelectorAll('#missList .was')].map(e => e.textContent)")
+    assert any('you put −' in w for w in was), f'miss texts {was}'
+
+
+def t_wrong_feedback(mk):
+    page = mk()
+    boot(page, {'autoSubmit': False, 'ops': ['×'], 'shape': 'facts', 'mode': 'endless', 'sound': False},
+         query='?seed=34')
+    start(page)
+    q = cur(page)
+    a = num(q['answer'])
+    type_answer(page, a + 1)
+    page.wait_for_selector('#verdict.b', timeout=1500)
+    tv = page.evaluate('performance.now()')
+    assert page.locator('#aText.bad').count() == 1, '#aText lacks class bad'
+    vt = page.inner_text('#verdict').strip()
+    assert vt == str(a), f'verdict text {vt!r}, want {str(a)!r}'
+    assert go_text(page) == 'Next', f'go key text {go_text(page)!r}'
+    page.wait_for_timeout(500)
+    mark_qid(page)
+    tap(page, 'go')
+    wait_next(page, timeout=600)
+    t1 = page.evaluate('performance.now()')
+    assert t1 - tv < 1100, f'next question {t1 - tv:.0f} ms after verdict (Next key ignored?)'
+    assert go_text(page) == '↵', f'go key text {go_text(page)!r} on next question'
+    cls = page.get_attribute('#aText', 'class') or ''
+    assert 'bad' not in cls.split() and 'ok' not in cls.split(), f'#aText class {cls!r}'
+
+
+def t_fast_pace(mk):
+    page = mk()
+    boot(page, {'autoSubmit': True, 'ops': ['×'], 'shape': 'facts', 'mode': 'endless', 'sound': False},
+         query='?seed=35')
+    start(page)
+    for i in range(3):
+        s = str(num(cur(page)['answer']))
+        mark_qid(page)
+        for ch in s[:-1]:
+            tap(page, ch)
+        t0 = page.evaluate('performance.now()')
+        tap(page, s[-1])
+        wait_next(page)
+        t1 = page.evaluate('performance.now()')
+        assert t1 - t0 < 450, f'question {i + 1}: next after {t1 - t0:.0f} ms'
+
+
+def t_review_tag(mk):
+    page = mk()
+    boot(page, {'ops': ['×'], 'shape': 'facts', 'autoSubmit': False, 'mode': 'endless', 'sound': False},
+         {'drill.srs': {'7×8': [0, '2000-01-01']}})
+    start(page)
+    k = cur(page)['key']
+    assert k == '7×8', f'first key {k!r}'
+    tag = (page.text_content('#qTag') or '').strip()
+    assert tag == 'Review', f'qTag {tag!r} on due item'
+    answer_and_next(page)
+    tag = (page.text_content('#qTag') or '').strip()
+    assert tag == '', f'qTag {tag!r} on generated question'
+
+
+def t_summary_srs(mk):
+    page = mk()
+    boot(page, {'autoSubmit': False, 'ops': ['+'], 'shape': 'facts', 'mode': 'count', 'count': 20,
+                'sound': False})
+    start(page)
+    q1 = answer_and_next(page, correct=False)
+    assert cur(page)['key'] != q1['key'], 'missed fact re-asked immediately'
+    answer_and_next(page)
+    page.tap('#quitBtn')
+    page.wait_for_selector('#summary.on')
+    t = re.sub(r'\s+', ' ', page.inner_text('#sumSrs')).strip()
+    assert re.match(r'^\d+ facts? back to review · \d+ due tomorrow$', t), f'sumSrs {t!r}'
+    assert t.startswith('1 fact back to review'), f'sumSrs {t!r}'
+
+
+def t_no_pinch(mk):
+    page = mk()
+    boot(page, {'sound': False})
+    start(page)
+    ta = page.evaluate("""() => [getComputedStyle(document.querySelector('#pad')).touchAction,
+        getComputedStyle(document.querySelector('#practice .body')).touchAction]""")
+    assert ta == ['none', 'none'], f'touch-action #pad/#practice .body = {ta}'
+
+
+def t_neg_placeholders(mk):
+    page = mk()
+    boot(page, {'signed': True, 'showLen': True, 'autoSubmit': True, 'ops': ['×'], 'shape': 'facts',
+                'mode': 'endless', 'sound': False}, query='?seed=36')
+    start(page)
+    q = find_q(page, lambda q: num(q['answer']) < 0, what='negative-answer')
+    n = page.locator('#aText .ph').count()
+    want = len(str(abs(num(q['answer']))))
+    assert n == want, f'{n} placeholders for answer {q["answer"]}, want {want}'
 
 
 CHECKS = [
@@ -600,7 +803,11 @@ CHECKS = [
     ('show-length', t_show_length), ('single-tap', t_single_tap), ('haptics', t_haptics),
     ('lefty', t_lefty), ('shapes', t_shapes), ('seeded', t_seeded), ('srs-rules', t_srs_rules),
     ('srs-seed-v1', t_srs_seed_v1), ('srs-due-first', t_srs_due_first), ('srs-miss', t_srs_miss),
-    ('import-v1', t_import_v1), ('negatives', t_negatives), ('sw', t_sw), ('layout', t_layout), ('screenshot', t_screenshot),
+    ('import-v1', t_import_v1), ('negatives', t_negatives),
+    ('fail-fast-positive', t_fail_fast_positive), ('fail-fast-negative', t_fail_fast_negative),
+    ('sign-first', t_sign_first), ('wrong-feedback', t_wrong_feedback), ('fast-pace', t_fast_pace),
+    ('review-tag', t_review_tag), ('summary-srs', t_summary_srs), ('no-pinch', t_no_pinch),
+    ('neg-placeholders', t_neg_placeholders), ('sw', t_sw), ('layout', t_layout), ('screenshot', t_screenshot),
 ]
 
 

@@ -177,9 +177,13 @@ button.row:active{background:var(--press)}
    PRACTICE
    ============================================================ */
 #practice{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* two thumbs on the keys must never start a pinch-zoom */
+#practice .body,.pad{touch-action:none}
 #practice .body{display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding-bottom:0}
 .seg-lbl{flex:1;text-align:center;font-size:13px;font-weight:500;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
-.qwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:0}
+/* the sum sits just above the keypad, so eyes and thumb stay close together */
+.qwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;min-height:0;padding-bottom:clamp(8px,3vh,28px);will-change:transform,opacity}
+.qtag{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);height:14px;line-height:14px}
 .q{
   font-family:var(--f-display);
   font-size:clamp(40px,13vw,68px);
@@ -193,22 +197,31 @@ button.row:active{background:var(--press)}
   min-height:1.15em;display:flex;align-items:center;gap:2px;
 }
 .a .ph{color:var(--ink-3);opacity:.35}
+/* feedback lands on the answer itself */
+.a{position:relative;transition:color .08s var(--ease)}
+.a.ok{color:var(--good)}
+.a.bad{color:var(--bad)}
+.a .typed{display:flex;gap:2px;position:relative}
+.a.bad .typed::after{content:"";position:absolute;left:-6px;right:-6px;top:54%;height:3px;border-radius:2px;background:var(--bad)}
+/* hidden but still taking space, so the digits never jump sideways */
+.a.ok .caret,.a.bad .caret,.a.ok .ph,.a.bad .ph{visibility:hidden}
 .caret{width:2px;height:.78em;background:var(--ink);border-radius:1px;animation:blink 1.06s steps(1) infinite;margin-left:3px}
 @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-.verdict{font-size:15px;font-weight:600;height:22px;letter-spacing:-.01em}
+.verdict{font-size:15px;font-weight:600;height:46px;display:flex;align-items:center;justify-content:center;letter-spacing:-.01em}
 .verdict.g{color:var(--good)}
-.verdict.b{color:var(--bad)}
+/* after a miss: the right answer, large, under the crossed-out one */
+.verdict.b{font-family:var(--f-display);font-size:clamp(30px,9vw,40px);font-weight:500;color:var(--ink);letter-spacing:-.02em}
 
 /* signature motion: the vertical exchange */
-.qwrap.out{animation:lift .17s var(--ease) forwards}
-.qwrap.in{animation:rise .19s var(--ease)}
+.qwrap.out{animation:lift .13s var(--ease) forwards}
+.qwrap.in{animation:rise .16s var(--ease)}
 @keyframes lift{to{opacity:0;transform:translateY(-14px)}}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .qwrap.shake{animation:shake .3s var(--ease)}
 @keyframes shake{20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-3px)}100%{transform:none}}
 
 .progress{height:2px;background:var(--hair);flex:none;margin:0 var(--pad)}
-.progress i{display:block;height:100%;background:var(--ink);border-radius:1px;transition:width .25s var(--ease)}
+.progress i{display:block;width:100%;height:100%;background:var(--ink);border-radius:1px;transform-origin:0 50%;transform:scaleX(0);transition:transform .25s var(--ease)}
 .timer{font-family:var(--f-display);font-size:15px;font-weight:600;color:var(--ink-2);min-width:44px;text-align:right}
 
 /* ---------- keypad ---------- */
@@ -230,6 +243,7 @@ button.row:active{background:var(--press)}
 .pad button.fn{font-size:21px;color:var(--ink-2)}
 .pad button.go{grid-row:span 2;height:auto;background:var(--ink);color:var(--paper);font-size:26px;font-weight:500}
 .pad button.go:active,.pad button.go.down{background:var(--ink);opacity:.82}
+.pad button.go.next{font-family:var(--f-text);font-size:18px;font-weight:600;letter-spacing:-.01em}
 .pad button:disabled{background:transparent;color:transparent;pointer-events:none}
 
 /* ============================================================
@@ -356,9 +370,10 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
     <div class="seg-lbl" id="segLbl"></div>
     <div class="timer" id="timer"></div>
   </div>
-  <div class="progress"><i id="progBar" style="width:0%"></i></div>
+  <div class="progress"><i id="progBar"></i></div>
   <div class="body">
     <div class="qwrap" id="qwrap">
+      <div class="qtag" id="qTag"></div>
       <div class="q" id="qText">&nbsp;</div>
       <div class="a" id="aText"></div>
       <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
@@ -370,7 +385,7 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
     <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
     <button class="fn" data-k="neg" id="negKey" aria-label="Plus or minus">&plusmn;</button>
     <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
-    <button class="go" data-k="go" aria-label="Enter">&#8629;</button>
+    <button class="go" data-k="go" id="goKey" aria-label="Enter">&#8629;</button>
     <button class="fn" data-k="dot" id="dotKey" aria-label="Decimal point">.</button>
     <button data-k="0">0</button>
     <button class="fn" data-k="k3" disabled aria-hidden="true"></button>
@@ -391,6 +406,7 @@ input.name:focus{outline:none;border-color:var(--ink-3)}
       <div class="metric"><b id="mBest">—</b><span>FASTEST</span></div>
       <div class="metric"><b id="mCount">—</b><span>ANSWERED</span></div>
     </div>
+    <p class="hint" id="sumSrs" style="margin:-8px 4px 0"></p>
     <div id="missWrap" style="display:none">
       <div class="eyebrow">Worth another look</div>
       <div class="list" id="missList"></div>
@@ -503,7 +519,7 @@ placeholder="7 x 8
     </div>
     <div class="eyebrow">Answering</div>
     <div class="list">
-      <button class="row" data-t="autoSubmit"><span class="lbl">Submit automatically<span class="sub2">As soon as the answer is long enough</span></span><span class="sw" role="switch"></span></button>
+      <button class="row" data-t="autoSubmit"><span class="lbl">Submit automatically<span class="sub2">The moment the answer is complete, or at the first wrong digit</span></span><span class="sw" role="switch"></span></button>
       <button class="row" data-t="showLen"><span class="lbl">Show answer length<span class="sub2">Grey digits show how long the answer is</span></span><span class="sw" role="switch"></span></button>
       <button class="row" data-t="sound"><span class="lbl">Sound</span><span class="sw" role="switch"></span></button>
       <button class="row" data-t="haptics"><span class="lbl">Haptics<span class="sub2">A light tap on every key. iPhone needs iOS 18 or later.</span></span><span class="sw" role="switch"></span></button>
@@ -521,7 +537,7 @@ placeholder="7 x 8
    Engine layer. No DOM below this line until Part D.
    ========================================================== */
 'use strict';
-const VERSION = 'drill-v3';   /* keep in step with CACHE in sw.js */
+const VERSION = 'drill-v4';   /* keep in step with CACHE in sw.js */
 
 /* ---------- randomness: one seedable source; ?seed=N replays a session ---------- */
 const SEED = (() => {
@@ -925,7 +941,8 @@ function generator(cfg) {
   const fromKey = k => {
     const f = factFromKey(k);
     if ((f.op === '+' || f.op === '×') && rng() < .5) { const s = f.a; f.a = f.b; f.b = s; }
-    seen.add(k); return factQ(f, cfg);
+    seen.add(k);
+    const q = factQ(f, cfg); q.review = true; return q;
   };
   function fresh() {
     const op = ops[rnd(0, ops.length - 1)], x = rnd(r[0][0], r[0][1]);
@@ -976,7 +993,7 @@ function Session(source, cfg, limit) {
   return {
     source, cfg, limit,
     asked: 0, correct: 0, times: [], okTimes: [], misses: [], done: false,
-    pending: [], boxes: {}, current: null, shownAt: 0,
+    pending: [], boxes: {}, srsKeys: new Set(), current: null, shownAt: 0,
     take() {
       const due = this.pending.findIndex(p => p.at <= this.asked);
       if (due > -1) return this.pending.splice(due, 1)[0].q;
@@ -993,16 +1010,16 @@ function Session(source, cfg, limit) {
       this.current = q; this.shownAt = performance.now();
       return q;
     },
-    judge(value) {
+    judge(value, txt) {
       const q = this.current, ms = performance.now() - this.shownAt;
       const ok = Math.abs(value - q.answer) < 1e-9;
       this.asked++; this.times.push(ms);
       if (ok) { this.correct++; this.okTimes.push(ms); }
-      else this.misses.push({ prompt: q.prompt, answer: q.answer, gave: value, ms });
+      else this.misses.push({ prompt: q.prompt, answer: q.answer, gave: value, gaveTxt: txt, ms });
       /* fact record */
       const f = S.facts[q.key] || (S.facts[q.key] = { n: 0, ok: 0, ms: 0 });
       f.n++; if (ok) { f.ok++; f.ms = f.ms ? (f.ms * 0.7 + ms * 0.3) : ms; }
-      if (q.srs) srsUpdate(q.key, ok, ms, q.target);
+      if (q.srs) { srsUpdate(q.key, ok, ms, q.target); this.srsKeys.add(q.key); }
       /* re-queue inside the session */
       const was = this.boxes[q.key];
       this.pending = this.pending.filter(p => p.q.key !== q.key);
@@ -1139,7 +1156,7 @@ $('#startBtn').addEventListener('click', () => startSession(null));
 /* ==========================================================
    PRACTICE
    ========================================================== */
-let ses = null, typed = '', neg = false, locked = false, tick = null, endsAt = 0, lastSet = null, qid = 0;
+let ses = null, typed = '', neg = false, locked = false, tick = null, endsAt = 0, lastSet = null, qid = 0, skip = null;
 
 function startSession(set) {
   lastSet = set;
@@ -1171,18 +1188,20 @@ function startSession(set) {
   paintTimer(); advance(true);
 }
 
+/* transform, not width: the bar animates on the compositor, off the main thread */
+const bar = f => { $('#progBar').style.transform = 'scaleX(' + f.toFixed(4) + ')'; };
 function paintTimer() {
   if (endsAt) {
     const left = Math.max(0, endsAt - Date.now());
     $('#timer').textContent = (left / 1000).toFixed(1);
-    $('#progBar').style.width = (left / (S.cfg.seconds * 1000) * 100) + '%';
+    bar(left / (S.cfg.seconds * 1000));
     if (left <= 0) finish();
   } else if (ses && ses.limit) {
     $('#timer').textContent = ses.asked + '/' + ses.limit;
-    $('#progBar').style.width = Math.min(100, ses.asked / ses.limit * 100) + '%';
+    bar(Math.min(1, ses.asked / ses.limit));
   } else if (ses) {
     $('#timer').textContent = String(ses.asked);
-    $('#progBar').style.width = '0%';
+    bar(0);
   }
 }
 
@@ -1205,27 +1224,29 @@ function advance(first) {
   const w = $('#qwrap');
   const put = () => {
     if (ses !== s) return;
-    typed = ''; neg = false;
+    typed = ''; neg = false; skip = null;
+    $('#qTag').textContent = q.review ? 'Review' : '';
     $('#qText').textContent = q.prompt; fit($('#qText'));
     $('#verdict').textContent = ''; $('#verdict').className = 'verdict';
+    $('#aText').className = 'a'; $('#goKey').textContent = '\u21B5'; $('#goKey').classList.remove('next');
     paintAnswer();
     w.classList.remove('out'); w.classList.add('in');
-    setTimeout(() => w.classList.remove('in'), 200);
+    setTimeout(() => w.classList.remove('in'), 170);
     s.shownAt = performance.now(); qid++;
     locked = false;
   };
-  if (first) put(); else { w.classList.add('out'); setTimeout(put, 165); }
+  if (first) put(); else { w.classList.add('out'); setTimeout(put, 135); }
   paintTimer();
 }
 
 function paintAnswer() {
   const el = $('#aText');
   const q = ses && ses.current, a = q ? q.answer : 0;
-  const showPh = S.cfg.showLen && Number.isInteger(a) && (a >= 0 || !!(q && q.signed));
+  const showPh = S.cfg.showLen && Number.isInteger(a);   /* digits only: the sign is never given away */
   const len = showPh ? String(Math.abs(a)).length : 0;
-  let html = '';
+  let html = '<span class="typed">';
   if (neg) html += '<span>&minus;</span>';
-  html += typed.split('').map(ch => '<span>' + (ch === '.' ? '.' : ch) + '</span>').join('');
+  html += typed.split('').map(ch => '<span>' + (ch === '.' ? '.' : ch) + '</span>').join('') + '</span>';
   if (showPh) for (let i = typed.length; i < len; i++) html += '<span class="ph">0</span>';
   html += '<span class="caret"></span>';
   el.innerHTML = html;
@@ -1235,44 +1256,51 @@ function paintAnswer() {
 const keyOn = k => { const b = document.querySelector('#pad [data-k="' + k + '"]'); return !!b && !b.disabled; };
 
 function press(k) {
-  if (locked || !ses || !ses.current) return;
+  if (!ses || !ses.current) return;
+  if (locked) { if (k === 'go' && skip) skip(); return; }   /* after a miss, ↵ moves on at once */
   if (k === 'go') return submit();
   if (k === 'del') { if (typed) typed = typed.slice(0, -1); else neg = false; }
   else if (k === 'neg') { if (!keyOn('neg')) return; neg = !neg; }
   else if (k === 'dot') { if (!keyOn('dot') || typed.indexOf('.') > -1) return; typed = (typed || '0') + '.'; }
   else if (/^[0-9]$/.test(k)) { if (typed.length >= 12) return; typed += k; }
   else return;
-  haptic('key');
   paintAnswer();
-  if (S.cfg.autoSubmit && typed.length) {
-    const q = ses.current, a = q.answer;
-    /* with negatives on, the digit count alone submits, so the sign must be set first
-       and the auto-submit never gives it away */
-    const full = Number.isInteger(a) && (q.signed ? typed.length === String(Math.abs(a)).length
-      : a >= 0 && !neg && typed.length === String(a).length);
-    if (full) {
-      locked = true;                       /* nothing typed in the next 30 ms can count */
-      setTimeout(() => submit(true), 30);
-    }
+  /* Judge as you type: right the moment the answer is complete, wrong at the first key
+     (digit or sign) that cannot lead to it. The sign comes first: −10 is ± 1 0. */
+  const a = ses.current.answer;
+  if (S.cfg.autoSubmit && Number.isInteger(a) && (typed.length || neg)) {
+    const want = (a < 0 ? '-' : '') + Math.abs(a), have = (neg ? '-' : '') + typed;
+    /* judged at once: the digit paints green or red in the same frame, the time is exact,
+       and submit plays the good/bad haptic instead of a key tick */
+    if (have === want || want.indexOf(have) !== 0) return submit(true);
   }
+  haptic('key');
 }
 
 function submit(auto) {
-  if ((locked && !auto) || !ses || !ses.current || !typed.length || typed === '.') return;
+  if ((locked && !auto) || !ses || !ses.current || (!auto && !typed.length) || typed === '.') return;
   locked = true;
-  const s = ses, value = parseFloat((neg ? '-' : '') + typed);
-  const r = s.judge(value);
-  const v = $('#verdict'), w = $('#qwrap');
-  const later = ms => setTimeout(() => { if (ses === s) advance(false); }, ms);
+  const s = ses, txt = (neg ? '−' : '') + typed;
+  const r = s.judge(typed ? parseFloat((neg ? '-' : '') + typed) : NaN, txt);
+  const v = $('#verdict'), w = $('#qwrap'), at = $('#aText');
   if (r.ok) {
-    v.textContent = 'Correct'; v.className = 'verdict g';
+    at.classList.add('ok'); v.textContent = 'Correct'; v.className = 'verdict g';
     blip(920, 60, .05); haptic('good');
-    later(190);
+    setTimeout(() => { if (ses === s) advance(false); }, 110);
   } else {
-    v.textContent = fmt(r.answer); v.className = 'verdict b';
+    at.classList.add('bad'); v.textContent = fmt(r.answer); v.className = 'verdict b';
     blip(170, 150, .06); haptic('bad');
     w.classList.add('shake'); setTimeout(() => w.classList.remove('shake'), 320);
-    later(1250);
+    /* the right answer stays up for 1.25 s; ↵ (now "Next") skips the wait,
+       but not in the first 350 ms, so a stray double tap cannot hide it */
+    const shown = performance.now();
+    const go = () => { clearTimeout(tm); if (ses !== s) return; skip = null; advance(false); };
+    let tm = setTimeout(go, 1250);
+    skip = () => {                          /* an early tap is queued, not dropped */
+      haptic('key'); clearTimeout(tm);
+      tm = setTimeout(go, Math.max(0, 350 - (performance.now() - shown)));
+    };
+    $('#goKey').textContent = 'Next'; $('#goKey').classList.add('next');
   }
   paintTimer();
 }
@@ -1317,6 +1345,7 @@ document.addEventListener('keydown', e => {
 
 function finish(early) {
   if (tick) { clearInterval(tick); tick = null; }
+  skip = null;
   const s = ses; ses = null;
   if (!s || !s.asked) return show('home');
   bumpStreak();
@@ -1333,12 +1362,17 @@ function finish(early) {
   /* fastest counts correct answers only */
   $('#mBest').textContent = s.okTimes.length ? (Math.min.apply(null, s.okTimes) / 1000).toFixed(1) + 's' : '—';
   $('#mCount').textContent = s.asked;
+  const back = Array.from(s.srsKeys).filter(k => S.srs[k] && S.srs[k][0] === 0).length;
+  const tmr = addDays(today(), 1);
+  const soon = Object.keys(S.srs).filter(k => S.srs[k][0] < RETIRED && S.srs[k][1] === tmr).length;
+  $('#sumSrs').textContent = s.srsKeys.size
+    ? back + (back === 1 ? ' fact' : ' facts') + ' back to review · ' + soon + ' due tomorrow' : '';
 
   const seen = {}, miss = s.misses.filter(m => (seen[m.prompt] ? false : (seen[m.prompt] = 1)));
   $('#missWrap').style.display = miss.length ? '' : 'none';
   $('#missList').innerHTML = miss.slice(0, 12).map(m =>
     '<div class="review"><span>' + esc(m.prompt) + ' <b>' + fmt(m.answer) + '</b></span>' +
-    '<span class="was">you put ' + fmt(m.gave) + '</span></div>').join('');
+    '<span class="was">you put ' + esc(m.gaveTxt != null ? m.gaveTxt : fmt(m.gave)) + '</span></div>').join('');
   show('summary');
 }
 $('#sumDone').addEventListener('click', () => show('home'));

@@ -1,8 +1,36 @@
 # Drill — notes
 
-Current release: **drill-v3** (`CACHE` in `sw.js`; `VERSION` in `index.html` mirrors it).
+Current release: **drill-v4** (`CACHE` in `sw.js`; `VERSION` in `index.html` mirrors it).
 Built: Phase 0a from `PLAN.md` (bug fixes B1–B6), iPhone XS polish, and a "tables" add-on
 (sizes, spaced review across days). Phase 0b and later are not started.
+
+## What changed in drill-v4: judge as you type, and a smoother practice loop
+- **Judge as you type** (when "Submit automatically" is on). After every key the typed answer is compared with the right one:
+  - It is marked **correct the moment it is complete**.
+  - It is marked **wrong at the first key that cannot lead to it**: answer 15, type 2 → wrong at once.
+  - The sign comes first. For 3 − 13 = −10: ± 1 0 is right, ± 1 waits, ± 1 4 is wrong at once.
+    Typing 1 without ± is wrong at once, and ± on a positive answer is wrong at once.
+  - **One rule everywhere.** In drill-v3, negative answers from "Allow negative answers" never submitted by themselves;
+    that rule came from PLAN §4.4 and is replaced here (deviation noted).
+  - Whole-number answers only; decimal answers in sets still use ↵.
+- **Grey placeholder digits** now show for negative answers too. They show the digit count only, never the sign.
+- **Feedback on the answer itself:**
+  - Right answers turn green.
+  - A wrong answer turns red and is struck through, and the right answer appears large beneath it, instead of in small text.
+  - The summary lists what you actually typed ("you put 2", "you put −").
+- **↵ becomes "Next" after a miss.** Tapping it skips the 1.25 s wait, but only after 350 ms, so a stray double tap cannot hide the answer.
+- **Quicker pace:** after a right answer the next question is up in about 250 ms (was about 355 ms).
+- **The sum sits just above the keypad**, so eyes and thumb stay together. Space for the verdict is reserved, so nothing jumps.
+- **"Review" tag** above questions that come from the review queue.
+- **Summary line:** "N facts back to review · M due tomorrow".
+- **No pinch-zoom on the practice screen** (`touch-action: none`). Two-thumb typing on iPhone could start a zoom.
+- **Review fixes.** An Opus review of the practice loop found six issues, all fixed and re-tested:
+  - The last key of an answer no longer plays a key tick as well as the right/wrong haptic. They used to merge into one blur.
+  - Judging is instant instead of 30 ms late. Recorded times are exact, and the digit turns green or red in the same frame.
+  - The caret and placeholders are hidden but keep their space, so digits never jump sideways. The strike line covers only what you typed.
+  - An early tap on Next (under 350 ms) is queued, not dropped.
+  - A wrong-answer timer from a session you had quit can no longer disable Next in the next session.
+  - The progress bar animates with `transform` (on the GPU) instead of `width`. It stays smooth through a 60 s sprint.
 
 ## What changed in drill-v3 — negative numbers
 - **New ± button** after + − × ÷ on Home: "Negative numbers" (`cfg.signed`, default off). When it is on:
@@ -81,7 +109,7 @@ Built: Phase 0a from `PLAN.md` (bug fixes B1–B6), iPhone XS polish, and a "tab
 `python3 -m http.server 8000` then `python3 tests/smoke.py http://localhost:8000/`. This needs `pip install playwright`;
 the test finds Chromium in `/opt/pw-browsers` or uses `DRILL_CHROMIUM`.
 
-**23 passed, 0 failed** (drill-v3). The run uses headless Chromium at 375 × 812 with touch on and timezone Asia/Ho_Chi_Minh.
+**32 passed, 0 failed** (drill-v4; the full suite ran green four times in a row, so the timing checks are stable). The run uses headless Chromium at 375 × 812 with touch on and timezone Asia/Ho_Chi_Minh.
 
 | Check | Covers |
 |---|---|
@@ -105,6 +133,15 @@ the test finds Chromium in `/opt/pw-browsers` or uses `DRILL_CHROMIUM`.
 | srs-miss | a miss lands in box 0 |
 | import-v1 | importing a v1 backup |
 | negatives | 16 signed questions across all four operations: answers whole and correct, brackets on a negative second number, ± key on; digits without the sign auto-submit as wrong |
+| fail-fast-positive | answer 15: one wrong first digit is marked wrong at once |
+| fail-fast-negative | answer −10: ± 1 waits; ± 1 4 is wrong at once; ± 1 0 is right |
+| sign-first | a digit before ± on a negative answer, or ± on a positive one, is wrong at once; summary shows "you put −" |
+| wrong-feedback | red strike, right answer large, ↵ reads Next and skips the wait |
+| fast-pace | next question within 450 ms of the last key |
+| review-tag | "Review" on a due fact, nothing on a new one |
+| summary-srs | "1 fact back to review · N due tomorrow" |
+| no-pinch | `touch-action: none` on the keypad and practice area |
+| neg-placeholders | grey digits for negative answers |
 | sw | `sw.js` content |
 | layout | 320 × 568 and 375 × 812, light and dark: no sideways scroll, Start visible, keys ≥ 44 px, prompt fits |
 | screenshot | `tests/shots/iphone-xs.png` |
