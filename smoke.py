@@ -495,8 +495,9 @@ def t_sw(mk):
     r = page.context.request.get(BASE + 'sw.js')
     assert r.ok, f'sw.js status {r.status}'
     t = r.text()
-    assert "CACHE = 'drill-v4'" in t, "sw.js lacks CACHE = 'drill-v4'"
+    assert "CACHE = 'drill-v5'" in t, "sw.js lacks CACHE = 'drill-v5'"
     assert "cache: 'reload'" in t, "sw.js lacks cache: 'reload'"
+    assert "k.startsWith('drill-')" in t, "sw.js would delete other apps' caches on the same site"
 
 
 def t_negatives(mk):

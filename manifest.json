@@ -4,7 +4,7 @@
   "description": "Mental arithmetic practice with your own question sets.",
   "start_url": "./",
   "scope": "./",
-  "id": "./",
+  "id": "/Arithmetic-Training-1/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F5F5F7",

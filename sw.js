@@ -1,6 +1,6 @@
 /* Drill — offline shell.
    Bump CACHE after you change index.html, or phones keep the old copy. */
-const CACHE = 'drill-v4';
+const CACHE = 'drill-v5';
 const SHELL = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './apple-touch-icon.png'
@@ -17,7 +17,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('drill-') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
